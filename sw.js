@@ -1,21 +1,29 @@
 const CACHE = 'gym-tracker-v1';
+
+const BASE = (() => {
+  const path = self.location.pathname;
+  return path.slice(0, path.lastIndexOf('/') + 1);
+})();
+
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/manifest.json',
-  '/images/icon.svg',
-  '/images/leg-press.svg',
-  '/images/leg-curl.svg',
-  '/images/lat-pulldown.svg',
-  '/images/chest-press.svg',
-  '/images/biceps-curl.svg',
-  '/images/triceps-pushdown.svg',
-  '/images/burpee.svg',
-  '/images/crunch.svg',
-  '/images/plank.svg',
-  '/images/treadmill.svg'
+  '.',
+  './index.html',
+  './style.css',
+  './app.js',
+  './manifest.json',
+  './images/icon.svg',
+  './images/icon-192.png',
+  './images/icon-512.png',
+  './images/leg-press.svg',
+  './images/leg-curl.svg',
+  './images/lat-pulldown.svg',
+  './images/chest-press.svg',
+  './images/biceps-curl.svg',
+  './images/triceps-pushdown.svg',
+  './images/burpee.svg',
+  './images/crunch.svg',
+  './images/plank.svg',
+  './images/treadmill.svg'
 ];
 
 self.addEventListener('install', e => {
@@ -42,7 +50,7 @@ self.addEventListener('fetch', e => {
         const clone = res.clone();
         caches.open(CACHE).then(cache => cache.put(e.request, clone));
         return res;
-      }).catch(() => caches.match('/'))
+      }).catch(() => caches.match('./index.html'))
     )
   );
 });
