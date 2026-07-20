@@ -371,6 +371,56 @@ header .subtitle {
   line-height: 1.5;
 }
 
+.ex-weight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.ew-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.ew-btn:hover {
+  border-color: var(--accent1);
+}
+
+.ew-btn.ew-set {
+  width: auto;
+  padding: 0 10px;
+  font-size: 0.75rem;
+  background: var(--surface);
+  color: var(--accent1);
+}
+
+.ew-val {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent4);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  min-width: 50px;
+  text-align: center;
+}
+
+.ew-val:hover {
+  background: var(--surface);
+}
+
 .ex-check {
   display: flex;
   align-items: center;

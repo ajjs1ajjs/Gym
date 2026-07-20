@@ -10,42 +10,48 @@ const WORKOUT = [
         badge: '3×15',
         img: 'images/leg-press.svg',
         desc: 'Ноги на ширині плечей. Плавно опускай платформу до кута 90° в колінах. Витискай без блокування колін.',
-        key: 'leg-press'
+        key: 'leg-press',
+        hasWeight: true
       },
       {
         name: 'Згинання/розгинання ніг',
         badge: '3×15',
         img: 'images/leg-curl.svg',
         desc: 'Поперемінно: згинання для біцепсу стегна, розгинання для квадрицепсу. Контролюй рух в обох фазах.',
-        key: 'leg-curl'
+        key: 'leg-curl',
+        hasWeight: true
       },
       {
         name: 'Тяга верхнього блоку до грудей',
         badge: '3×15',
         img: 'images/lat-pulldown.svg',
         desc: 'Хват широкий. Зводь лопатки в нижній точці. Корпус трохи відхилений назад.',
-        key: 'lat-pulldown'
+        key: 'lat-pulldown',
+        hasWeight: true
       },
       {
         name: 'Жим сидячи на груди',
         badge: '3×15',
         img: 'images/chest-press.svg',
         desc: 'Лікті під кутом 45° до корпусу. Витискай на видиху, опускай контрольовано.',
-        key: 'chest-press'
+        key: 'chest-press',
+        hasWeight: true
       },
       {
         name: 'Згинання на біцепс',
         badge: '3×12–15',
         img: 'images/biceps-curl.svg',
         desc: 'Лікті нерухомо притиснуті. Пік скорочення у верхній точці. Опускай повільно.',
-        key: 'biceps-curl'
+        key: 'biceps-curl',
+        hasWeight: true
       },
       {
         name: 'Розгинання на трицепс',
         badge: '3×12–15',
         img: 'images/triceps-pushdown.svg',
         desc: 'За бажанням. Трос/канат. Лікті фіксовані, тільки передпліччя рухаються.',
-        key: 'triceps-pushdown'
+        key: 'triceps-pushdown',
+        hasWeight: true
       }
     ]
   },
@@ -105,6 +111,7 @@ const WORKOUT = [
 
 const STORAGE_KEY = 'gym-tracker-progress';
 const WEIGHT_KEY = 'gym-tracker-weights';
+const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
 let deferredPrompt = null;
 
 function loadProgress() {
@@ -133,6 +140,19 @@ function saveWeights(weights) {
   localStorage.setItem(WEIGHT_KEY, JSON.stringify(weights));
 }
 
+function loadExWeights() {
+  try {
+    const data = localStorage.getItem(EX_WEIGHT_KEY);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveExWeights(weights) {
+  localStorage.setItem(EX_WEIGHT_KEY, JSON.stringify(weights));
+}
+
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -154,6 +174,7 @@ function getAllKeys() {
 
 function render() {
   const progress = loadProgress();
+  const exWeights = loadExWeights();
   const allKeys = getAllKeys();
   const doneCount = allKeys.filter(k => progress[k]).length;
   const totalCount = allKeys.length;
@@ -184,6 +205,21 @@ function render() {
         <div class="block-desc">${block.desc}</div>
         ${block.exercises.map(ex => {
           const checked = progress[ex.key] ? 'checked' : '';
+          const ew = exWeights[ex.key];
+          let weightHtml = '';
+          if (ex.hasWeight) {
+            if (ew) {
+              weightHtml = `
+                <div class="ex-weight">
+                  <button class="ew-btn" data-key="${ex.key}" data-delta="-2.5">−</button>
+                  <span class="ew-val" data-key="${ex.key}">${ew} кг</span>
+                  <button class="ew-btn" data-key="${ex.key}" data-delta="2.5">+</button>
+                </div>
+              `;
+            } else {
+              weightHtml = `<div class="ex-weight"><button class="ew-btn ew-set" data-key="${ex.key}" data-delta="prompt">+ Вага</button></div>`;
+            }
+          }
           return `
             <div class="exercise ${checked ? 'done' : ''}" data-key="${ex.key}">
               <div class="ex-thumb"><img src="${ex.img}" alt="${ex.name}" loading="lazy"></div>
@@ -193,6 +229,7 @@ function render() {
                   <div class="ex-badge">${ex.badge}</div>
                 </div>
                 <div class="ex-desc">${ex.desc}</div>
+                ${weightHtml}
               </div>
               <div class="ex-check">
                 <input type="checkbox" id="cb-${ex.key}" ${checked}>
@@ -230,6 +267,54 @@ function render() {
       }
       saveProgress(progress);
       exEl.classList.toggle('done', cb.checked);
+      render();
+    });
+  });
+
+  // Exercise weight events
+  document.querySelectorAll('.ew-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.key;
+      const delta = btn.dataset.delta;
+      const exWeights = loadExWeights();
+
+      if (delta === 'prompt') {
+        const val = prompt('Введіть вагу (кг):');
+        if (val === null) return;
+        const num = parseFloat(val);
+        if (!num || num <= 0) { showToast('Некоректне значення'); return; }
+        exWeights[key] = num;
+      } else {
+        const step = parseFloat(delta);
+        const current = exWeights[key] || 0;
+        const next = Math.max(0, Math.round((current + step) * 10) / 10);
+        if (next <= 0) {
+          if (!confirm('Видалити вагу для цієї вправи?')) return;
+          delete exWeights[key];
+          saveExWeights(exWeights);
+          render();
+          return;
+        }
+        exWeights[key] = next;
+      }
+
+      saveExWeights(exWeights);
+      render();
+    });
+  });
+
+  // Click on weight value to edit
+  document.querySelectorAll('.ew-val').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.key;
+      const exWeights = loadExWeights();
+      const current = exWeights[key] || '';
+      const val = prompt('Вага (кг):', current);
+      if (val === null) return;
+      const num = parseFloat(val);
+      if (!num || num <= 0) { showToast('Некоректне значення'); return; }
+      exWeights[key] = num;
+      saveExWeights(exWeights);
       render();
     });
   });
