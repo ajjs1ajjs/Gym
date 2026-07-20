@@ -104,6 +104,7 @@ const WORKOUT = [
 ];
 
 const STORAGE_KEY = 'gym-tracker-progress';
+const WEIGHT_KEY = 'gym-tracker-weights';
 let deferredPrompt = null;
 
 function loadProgress() {
@@ -117,6 +118,28 @@ function loadProgress() {
 
 function saveProgress(progress) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+function loadWeights() {
+  try {
+    const data = localStorage.getItem(WEIGHT_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveWeights(weights) {
+  localStorage.setItem(WEIGHT_KEY, JSON.stringify(weights));
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDate(str) {
+  const d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
 }
 
 function getAllKeys() {
@@ -226,6 +249,129 @@ function showToast(msg) {
   setTimeout(() => el.classList.remove('show'), 2000);
 }
 
+// Weight tracking
+function renderWeight() {
+  const container = document.getElementById('weight-section');
+  const weights = loadWeights();
+  const sorted = [...weights].sort((a, b) => b.date.localeCompare(a.date));
+  const current = sorted.length > 0 ? sorted[0].weight : null;
+  const prev = sorted.length > 1 ? sorted[1].weight : null;
+  const diff = current !== null && prev !== null ? (current - prev) : null;
+  const min = sorted.length > 0 ? Math.min(...sorted.map(w => w.weight)) : null;
+  const max = sorted.length > 0 ? Math.max(...sorted.map(w => w.weight)) : null;
+
+  let html = '<div class="weight-summary">';
+  if (current !== null) {
+    html += `<div class="weight-stat"><div class="val">${current}</div><div class="label">Поточна вага</div></div>`;
+    if (diff !== null) {
+      const sign = diff > 0 ? '+' : '';
+      const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : '';
+      html += `<div class="weight-stat ${cls}"><div class="val">${sign}${diff.toFixed(1)}</div><div class="label">Зміна</div></div>`;
+    }
+    html += `<div class="weight-stat"><div class="val">${min}</div><div class="label">Мінімум</div></div>`;
+    html += `<div class="weight-stat"><div class="val">${max}</div><div class="label">Максимум</div></div>`;
+  } else {
+    html += '<div class="weight-stat" style="flex:2"><div class="val" style="font-size:0.9rem">—</div><div class="label">Додайте перше вимірювання</div></div>';
+  }
+  html += '</div>';
+
+  html += `
+    <div class="weight-form">
+      <input type="number" id="w-input" placeholder="Вага (кг)" step="0.1" min="20" max="300">
+      <input type="date" id="w-date" value="${todayStr()}">
+      <button class="btn-add" id="w-add">+ Додати</button>
+    </div>
+  `;
+
+  if (sorted.length > 0) {
+    sorted.forEach(w => {
+      const idx = weights.findIndex(x => x.id === w.id);
+      const wDiff = idx < weights.length - 1 ? (w.weight - weights[idx + 1].weight) : null;
+      let diffHtml = '';
+      if (wDiff !== null) {
+        const sign = wDiff > 0 ? '+' : '';
+        const cls = wDiff > 0 ? 'pos' : wDiff < 0 ? 'neg' : 'zero';
+        diffHtml = `<span class="w-diff ${cls}">${sign}${wDiff.toFixed(1)}</span>`;
+      }
+      html += `
+        <div class="weight-entry" data-id="${w.id}">
+          <span class="w-date">${formatDate(w.date)}</span>
+          <span class="w-val">${w.weight} кг</span>
+          ${diffHtml}
+          <div class="w-actions">
+            <button class="w-btn w-btn-edit">✎</button>
+            <button class="w-btn w-btn-del">✕</button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  container.innerHTML = html;
+
+  document.getElementById('w-add')?.addEventListener('click', addWeight);
+  document.getElementById('w-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') addWeight(); });
+  container.querySelectorAll('.w-btn-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const entry = btn.closest('.weight-entry');
+      const id = Number(entry.dataset.id);
+      const weights = loadWeights();
+      const w = weights.find(x => x.id === id);
+      if (!w) return;
+      const input = document.getElementById('w-input');
+      const dateInput = document.getElementById('w-date');
+      input.value = w.weight;
+      dateInput.value = w.date;
+      document.getElementById('w-add').textContent = '✎ Зберегти';
+      document.getElementById('w-add').dataset.editId = id;
+    });
+  });
+  container.querySelectorAll('.w-btn-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const entry = btn.closest('.weight-entry');
+      const id = Number(entry.dataset.id);
+      if (!confirm('Видалити запис?')) return;
+      let weights = loadWeights();
+      weights = weights.filter(w => w.id !== id);
+      saveWeights(weights);
+      renderWeight();
+      showToast('Запис видалено');
+    });
+  });
+}
+
+function addWeight() {
+  const input = document.getElementById('w-input');
+  const dateInput = document.getElementById('w-date');
+  const btn = document.getElementById('w-add');
+  const weight = parseFloat(input.value);
+  const date = dateInput.value;
+  if (!weight || weight <= 0) { showToast('Введіть коректну вагу'); return; }
+  if (!date) { showToast('Виберіть дату'); return; }
+
+  const weights = loadWeights();
+  const editId = btn.dataset.editId;
+
+  if (editId) {
+    const idx = weights.findIndex(w => w.id === Number(editId));
+    if (idx !== -1) {
+      weights[idx].weight = weight;
+      weights[idx].date = date;
+    }
+    delete btn.dataset.editId;
+    btn.textContent = '+ Додати';
+  } else {
+    weights.push({ id: Date.now(), date, weight });
+  }
+
+  weights.sort((a, b) => b.date.localeCompare(a.date));
+  saveWeights(weights);
+  input.value = '';
+  dateInput.value = todayStr();
+  renderWeight();
+  showToast(editId ? 'Оновлено' : 'Додано');
+}
+
 // PWA Install
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
@@ -259,4 +405,13 @@ if ('serviceWorker' in navigator) {
 
 document.getElementById('btn-reset').addEventListener('click', resetProgress);
 
+// Weight block toggle
+document.querySelector('.block-weight .block-header')?.addEventListener('click', () => {
+  const body = document.getElementById('weight-section');
+  const arrow = document.querySelector('.block-weight .arrow');
+  const isOpen = body.classList.toggle('open');
+  arrow.classList.toggle('open', isOpen);
+});
+
 render();
+renderWeight();
