@@ -252,7 +252,9 @@ window.addEventListener('appinstalled', () => {
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.register('sw.js').catch(e => {
+    console.error('SW registration failed:', e);
+  });
 }
 
 document.getElementById('btn-reset').addEventListener('click', resetProgress);

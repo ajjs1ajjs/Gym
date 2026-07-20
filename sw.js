@@ -1,56 +1,51 @@
-const CACHE = 'gym-tracker-v1';
+const CACHE = 'gym-tracker-v2';
 
-const BASE = (() => {
-  const path = self.location.pathname;
-  return path.slice(0, path.lastIndexOf('/') + 1);
-})();
+const BASE = self.location.pathname.replace(/\/[^/]*$/, '/');
 
-const ASSETS = [
-  '.',
-  './index.html',
-  './style.css',
-  './app.js',
-  './manifest.json',
-  './images/icon.svg',
-  './images/icon-192.png',
-  './images/icon-512.png',
-  './images/leg-press.svg',
-  './images/leg-curl.svg',
-  './images/lat-pulldown.svg',
-  './images/chest-press.svg',
-  './images/biceps-curl.svg',
-  './images/triceps-pushdown.svg',
-  './images/burpee.svg',
-  './images/crunch.svg',
-  './images/plank.svg',
-  './images/treadmill.svg'
-];
-
-self.addEventListener('install', e => {
+addEventListener('install', e => {
+  const ASSETS = [
+    `${BASE}index.html`,
+    `${BASE}style.css`,
+    `${BASE}app.js`,
+    `${BASE}manifest.json`,
+    `${BASE}images/icon.svg`,
+    `${BASE}images/icon-192.png`,
+    `${BASE}images/icon-512.png`,
+    `${BASE}images/leg-press.svg`,
+    `${BASE}images/leg-curl.svg`,
+    `${BASE}images/lat-pulldown.svg`,
+    `${BASE}images/chest-press.svg`,
+    `${BASE}images/biceps-curl.svg`,
+    `${BASE}images/triceps-pushdown.svg`,
+    `${BASE}images/burpee.svg`,
+    `${BASE}images/crunch.svg`,
+    `${BASE}images/plank.svg`,
+    `${BASE}images/treadmill.svg`
+  ];
   e.waitUntil(
     caches.open(CACHE).then(cache => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
+  skipWaiting();
 });
 
-self.addEventListener('activate', e => {
+addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
       Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
     )
   );
-  self.clients.claim();
+  clients.claim();
 });
 
-self.addEventListener('fetch', e => {
+addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
     caches.match(e.request).then(cached =>
       cached || fetch(e.request).then(res => {
-        const clone = res.clone();
-        caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        const c = res.clone();
+        caches.open(CACHE).then(cache => cache.put(e.request, c));
         return res;
-      }).catch(() => caches.match('./index.html'))
+      }).catch(() => caches.match(`${BASE}index.html`))
     )
   );
 });
