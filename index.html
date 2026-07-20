@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Gym Tracker</title>
+  <meta name="description" content="Щоденний трекер тренувань у тренажерному залі">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="images/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="images/icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>🏋️ Gym <span>Tracker</span></h1>
+    <div class="subtitle">Щоденне тренування</div>
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-text" id="progress-text">0/0 · 0%</div>
+    </div>
+  </header>
+
+  <main id="blocks"></main>
+
+  <div class="actions">
+    <button class="btn btn-install" id="btn-install" style="display:none">📲 Встановити</button>
+    <button class="btn btn-danger" id="btn-reset">✕ Скинути прогрес</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
