@@ -527,6 +527,107 @@ header .subtitle {
   opacity: 1;
 }
 
+/* Date navigation */
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.dn-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  line-height: 1;
+}
+
+.dn-btn:hover {
+  background: var(--surface2);
+  border-color: var(--accent1);
+}
+
+.dn-date {
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 130px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dn-today {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  color: var(--accent1);
+  border-color: var(--accent1);
+}
+
+/* History section */
+.history-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  border: 1px solid transparent;
+}
+
+.history-entry:hover {
+  border-color: var(--accent1);
+}
+
+.history-entry.history-curr {
+  border-color: var(--accent7);
+}
+
+.history-entry .h-date {
+  font-size: 0.82rem;
+  font-weight: 600;
+  min-width: 75px;
+}
+
+.history-entry .h-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.history-entry .h-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent1), var(--complete));
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.history-entry .h-pct {
+  font-size: 0.72rem;
+  color: var(--text2);
+  min-width: 72px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.history-empty {
+  text-align: center;
+  color: var(--text2);
+  font-size: 0.85rem;
+  padding: 20px;
+}
+
 @media (min-width: 600px) {
   body {
     max-width: 500px;

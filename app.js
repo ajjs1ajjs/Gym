@@ -109,22 +109,50 @@ const WORKOUT = [
   }
 ];
 
-const STORAGE_KEY = 'gym-tracker-progress';
+const STORAGE_KEY = 'gym-tracker-progress-v2';
 const WEIGHT_KEY = 'gym-tracker-weights';
 const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
 let deferredPrompt = null;
+let selectedDate = todayStr();
 
-function loadProgress() {
+function loadAllProgress() {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : {};
+    if (data) return JSON.parse(data);
+    const old = localStorage.getItem('gym-tracker-progress');
+    if (old) {
+      const p = JSON.parse(old);
+      if (p && typeof p === 'object') {
+        const hasDateKeys = Object.keys(p).some(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
+        if (!hasDateKeys) {
+          const migrated = { [todayStr()]: p };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          localStorage.removeItem('gym-tracker-progress');
+          return migrated;
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+        localStorage.removeItem('gym-tracker-progress');
+        return p;
+      }
+    }
+    return {};
   } catch {
     return {};
   }
 }
 
+function saveAllProgress(all) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+}
+
+function loadProgress() {
+  return loadAllProgress()[selectedDate] || {};
+}
+
 function saveProgress(progress) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  const all = loadAllProgress();
+  all[selectedDate] = progress || {};
+  saveAllProgress(all);
 }
 
 function loadWeights() {
@@ -162,6 +190,21 @@ function formatDate(str) {
   return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
 }
 
+function formatDateLabel(str) {
+  if (str === todayStr()) return 'Сьогодні';
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  if (str === y.toISOString().slice(0, 10)) return 'Вчора';
+  return new Date(str + 'T00:00:00').toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function getWorkoutDates() {
+  const all = loadAllProgress();
+  return Object.keys(all).filter(d => {
+    const p = all[d];
+    return p && typeof p === 'object' && Object.keys(p).length > 0;
+  }).sort().reverse();
+}
+
 function getAllKeys() {
   const keys = [];
   for (const block of WORKOUT) {
@@ -182,6 +225,23 @@ function render() {
 
   document.getElementById('progress-fill').style.width = pct + '%';
   document.getElementById('progress-text').textContent = `${doneCount}/${totalCount} · ${pct}%`;
+
+  // Date navigation
+  const todayLabel = todayStr();
+  const dn = document.getElementById('date-nav');
+  dn.innerHTML = `
+    <button class="dn-btn" data-delta="-1">◀</button>
+    <span class="dn-date">${formatDateLabel(selectedDate)}</span>
+    <button class="dn-btn" data-delta="1">▶</button>
+    ${selectedDate !== todayLabel ? `<button class="dn-btn dn-today" data-delta="today">📅 Сьогодні</button>` : ''}
+  `;
+  dn.querySelectorAll('.dn-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = btn.dataset.delta;
+      if (delta === 'today') goToToday();
+      else navigateDate(parseInt(delta));
+    });
+  });
 
   const container = document.getElementById('blocks');
   container.innerHTML = '';
@@ -244,8 +304,8 @@ function render() {
     container.appendChild(blockEl);
   }
 
-  // Toggle blocks
-  document.querySelectorAll('.block-header').forEach(h => {
+  // Toggle workout blocks
+  document.querySelectorAll('#blocks .block-header').forEach(h => {
     h.addEventListener('click', () => {
       const body = h.nextElementSibling;
       const arrow = h.querySelector('.arrow');
@@ -318,12 +378,19 @@ function render() {
       render();
     });
   });
+
+  renderHistory();
 }
 
 function resetProgress() {
-  if (!confirm('Скинути весь прогрес?')) return;
-  localStorage.removeItem(STORAGE_KEY);
+  const label = selectedDate === todayStr() ? 'сьогодні' : formatDate(selectedDate);
+  if (!confirm(`Скинути прогрес на ${label}?`)) return;
+  const all = loadAllProgress();
+  delete all[selectedDate];
+  saveAllProgress(all);
+  selectedDate = todayStr();
   render();
+  renderWeight();
   showToast('Прогрес скинуто');
 }
 
@@ -457,6 +524,58 @@ function addWeight() {
   showToast(editId ? 'Оновлено' : 'Додано');
 }
 
+function navigateDate(delta) {
+  const d = new Date(selectedDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  const newDate = d.toISOString().slice(0, 10);
+  if (newDate > todayStr()) return;
+  selectedDate = newDate;
+  render();
+  renderWeight();
+}
+
+function goToToday() {
+  selectedDate = todayStr();
+  render();
+  renderWeight();
+}
+
+function renderHistory() {
+  const container = document.getElementById('history-section');
+  if (!container) return;
+  const all = loadAllProgress();
+  const dates = Object.keys(all).filter(d => {
+    const p = all[d];
+    return p && typeof p === 'object' && Object.keys(p).length > 0;
+  }).sort().reverse();
+  const allKeys = getAllKeys();
+  const total = allKeys.length;
+  if (dates.length === 0) {
+    container.innerHTML = '<div class="history-empty">Ще немає записів тренувань</div>';
+    return;
+  }
+  container.innerHTML = dates.map(d => {
+    const progress = all[d] || {};
+    const done = allKeys.filter(k => progress[k]).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const isSel = d === selectedDate;
+    return `
+      <div class="history-entry ${isSel ? 'history-curr' : ''}" data-date="${d}">
+        <span class="h-date">${formatDate(d)}</span>
+        <div class="h-bar"><div class="h-fill" style="width:${pct}%"></div></div>
+        <span class="h-pct">${done}/${total} · ${pct}%</span>
+      </div>
+    `;
+  }).join('');
+  container.querySelectorAll('.history-entry').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedDate = el.dataset.date;
+      render();
+      renderWeight();
+    });
+  });
+}
+
 // PWA Install
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
@@ -496,6 +615,16 @@ document.querySelector('.block-weight .block-header')?.addEventListener('click',
   const arrow = document.querySelector('.block-weight .arrow');
   const isOpen = body.classList.toggle('open');
   arrow.classList.toggle('open', isOpen);
+});
+
+// History block toggle
+document.querySelector('.block-history .block-header')?.addEventListener('click', () => {
+  const body = document.getElementById('history-section');
+  const arrow = document.querySelector('.block-history .arrow');
+  if (body && arrow) {
+    const isOpen = body.classList.toggle('open');
+    arrow.classList.toggle('open', isOpen);
+  }
 });
 
 render();
