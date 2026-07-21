@@ -542,7 +542,7 @@ function addWeight() {
 function navigateDate(delta) {
   const d = new Date(selectedDate + 'T00:00:00');
   d.setDate(d.getDate() + delta);
-  const newDate = d.toISOString().slice(0, 10);
+  const newDate = localDateStr(d);
   if (newDate > todayStr()) return;
   selectedDate = newDate;
   render();
