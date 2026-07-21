@@ -535,6 +535,7 @@ header .subtitle {
   margin-bottom: 16px;
   justify-content: center;
   padding: 4px 0;
+  position: relative;
 }
 
 .dn-btn {
@@ -542,12 +543,19 @@ header .subtitle {
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 0.85rem;
+  padding: 10px 14px;
+  font-size: 1rem;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.2s;
   line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .dn-btn:hover {
@@ -555,19 +563,39 @@ header .subtitle {
   border-color: var(--accent1);
 }
 
+.dn-btn:active {
+  transform: scale(0.95);
+}
+
 .dn-date {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  min-width: 130px;
+  min-width: 140px;
   text-align: center;
   white-space: nowrap;
+  padding: 8px 4px;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dn-date:active {
+  background: var(--surface2);
 }
 
 .dn-today {
-  font-size: 0.75rem;
-  padding: 4px 10px;
+  font-size: 0.8rem;
+  padding: 6px 10px;
   color: var(--accent1);
   border-color: var(--accent1);
+}
+
+.dn-picker {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
 
 /* History section */

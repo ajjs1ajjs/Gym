@@ -181,8 +181,12 @@ function saveExWeights(weights) {
   localStorage.setItem(EX_WEIGHT_KEY, JSON.stringify(weights));
 }
 
+function localDateStr(date) {
+  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+}
+
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr(new Date());
 }
 
 function formatDate(str) {
@@ -193,7 +197,7 @@ function formatDate(str) {
 function formatDateLabel(str) {
   if (str === todayStr()) return 'Сьогодні';
   const y = new Date(); y.setDate(y.getDate() - 1);
-  if (str === y.toISOString().slice(0, 10)) return 'Вчора';
+  if (str === localDateStr(y)) return 'Вчора';
   return new Date(str + 'T00:00:00').toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
@@ -231,8 +235,9 @@ function render() {
   const dn = document.getElementById('date-nav');
   dn.innerHTML = `
     <button class="dn-btn" data-delta="-1">◀</button>
-    <span class="dn-date">${formatDateLabel(selectedDate)}</span>
+    <span class="dn-date" id="dn-label">${formatDateLabel(selectedDate)}</span>
     <button class="dn-btn" data-delta="1">▶</button>
+    <input type="date" id="dn-picker" class="dn-picker" value="${selectedDate}" max="${todayLabel}">
     ${selectedDate !== todayLabel ? `<button class="dn-btn dn-today" data-delta="today">📅 Сьогодні</button>` : ''}
   `;
   dn.querySelectorAll('.dn-btn').forEach(btn => {
@@ -242,6 +247,16 @@ function render() {
       else navigateDate(parseInt(delta));
     });
   });
+  const dnLabel = document.getElementById('dn-label');
+  const dnPicker = document.getElementById('dn-picker');
+  if (dnLabel && dnPicker) {
+    dnLabel.addEventListener('click', () => dnPicker.showPicker());
+    dnPicker.addEventListener('change', () => {
+      selectedDate = dnPicker.value;
+      render();
+      renderWeight();
+    });
+  }
 
   const container = document.getElementById('blocks');
   container.innerHTML = '';
