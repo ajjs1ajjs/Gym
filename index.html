@@ -9,63 +9,13 @@
   <meta name="theme-color" content="#1a1a2e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="images/icon-192.png" sizes="192x192" type="image/png">
-  <link rel="icon" href="images/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="images/icon-192.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/Gym/manifest.json">
+  <link rel="icon" href="/Gym/images/icon-192.png" sizes="192x192" type="image/png">
+  <link rel="icon" href="/Gym/images/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/Gym/images/icon-192.png">
 </head>
 <body>
-  <header>
-    <h1>🏋️ Gym <span>Tracker</span></h1>
-    <div class="subtitle">Щоденне тренування</div>
-    <div class="progress-container">
-      <div class="progress-bar">
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
-      <div class="progress-text" id="progress-text">0/0 · 0%</div>
-    </div>
-  </header>
-
-  <div id="date-nav" class="date-nav"></div>
-
-  <main id="blocks"></main>
-
-  <div class="block block-weight" style="margin-top:20px">
-    <div class="block-header" data-target="weight">
-      <div class="icon" style="background:var(--accent4);color:#000">⚖️</div>
-      <div class="title">Вага</div>
-      <div class="arrow">▾</div>
-    </div>
-    <div class="block-body open" id="weight-section"></div>
-  </div>
-
-  <div class="block block-history" style="margin-top:20px">
-    <div class="block-header">
-      <div class="icon" style="background:var(--accent7);color:#fff">📋</div>
-      <div class="title">Історія тренувань</div>
-      <div class="arrow open">▾</div>
-    </div>
-    <div class="block-body open" id="history-section"></div>
-  </div>
-
-  <div class="actions">
-    <button class="btn btn-install" id="btn-install" style="display:none">📲 Встановити</button>
-    <button class="btn btn-danger" id="btn-reset">✕ Скинути прогрес</button>
-  </div>
-
-  <dialog id="weight-dialog">
-    <div class="dlg-title" id="dlg-title">Вага (кг)</div>
-    <input type="number" id="dlg-input" step="0.5" min="0.5" inputmode="decimal" placeholder="0.5">
-    <div class="dlg-actions">
-      <button type="button" class="btn" id="dlg-cancel">Скасувати</button>
-      <button type="button" class="btn btn-primary" id="dlg-ok">ОК</button>
-    </div>
-  </dialog>
-
-  <div class="toast" id="toast"></div>
-
-  <script src="lib.js"></script>
-  <script src="app.js"></script>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

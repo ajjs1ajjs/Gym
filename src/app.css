@@ -121,6 +121,16 @@ header {
   font-family: inherit;
 }
 
+.weight-error {
+  font-size: 0.78rem;
+  color: var(--accent6);
+  margin: -8px 0 12px;
+  padding: 8px 12px;
+  background: rgba(230, 57, 70, 0.08);
+  border: 1px solid rgba(230, 57, 70, 0.3);
+  border-radius: 8px;
+}
+
 .weight-entry {
   display: flex;
   align-items: center;
