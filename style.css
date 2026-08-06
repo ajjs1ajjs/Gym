@@ -427,7 +427,17 @@ header .subtitle {
 }
 
 .ex-check input[type="checkbox"] {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ex-check input:focus-visible + label {
+  outline: 2px solid var(--accent1);
+  outline-offset: 2px;
 }
 
 .ex-check label {
@@ -525,6 +535,64 @@ header .subtitle {
 
 .toast.show {
   opacity: 1;
+}
+
+/* Weight dialog */
+#weight-dialog {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  width: min(320px, 90vw);
+  margin: auto;
+}
+
+#weight-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.dlg-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+#dlg-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-size: 1.1rem;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+#dlg-input:focus {
+  border-color: var(--accent1);
+}
+
+.dlg-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.btn-primary {
+  background: var(--accent1);
+  color: #000;
+  border-color: var(--accent1);
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: var(--accent1);
+  color: #000;
+  filter: brightness(1.1);
 }
 
 /* Date navigation */

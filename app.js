@@ -1,3 +1,8 @@
+const {
+  localDateStr, todayStr, formatDate, formatDateLabel,
+  toWeight, escapeHtml, isValidDateEntry, computeWeightDiffs, DATE_RE
+} = GymLib;
+
 const WORKOUT = [
   {
     title: 'Силовий блок',
@@ -115,34 +120,52 @@ const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
 let deferredPrompt = null;
 let selectedDate = todayStr();
 
+let cachedAll = null;
+let cachedWeights = null;
+let cachedExWeights = null;
+
 function loadAllProgress() {
+  if (cachedAll) return cachedAll;
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    if (data) return JSON.parse(data);
+    if (data) {
+      cachedAll = JSON.parse(data);
+      return cachedAll;
+    }
     const old = localStorage.getItem('gym-tracker-progress');
     if (old) {
       const p = JSON.parse(old);
       if (p && typeof p === 'object') {
-        const hasDateKeys = Object.keys(p).some(k => /^\d{4}-\d{2}-\d{2}$/.test(k));
+        const hasDateKeys = Object.keys(p).some(k => DATE_RE.test(k));
         if (!hasDateKeys) {
           const migrated = { [todayStr()]: p };
+          cachedAll = migrated;
           localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
           localStorage.removeItem('gym-tracker-progress');
           return migrated;
         }
+        cachedAll = p;
         localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
         localStorage.removeItem('gym-tracker-progress');
         return p;
       }
     }
-    return {};
+    cachedAll = {};
+    return cachedAll;
   } catch {
-    return {};
+    cachedAll = {};
+    return cachedAll;
   }
 }
 
 function saveAllProgress(all) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  cachedAll = all;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') showToast('Помилка збереження: сховище переповнене');
+    else throw e;
+  }
 }
 
 function loadProgress() {
@@ -151,62 +174,56 @@ function loadProgress() {
 
 function saveProgress(progress) {
   const all = loadAllProgress();
-  all[selectedDate] = progress || {};
+  if (progress && typeof progress === 'object' && Object.keys(progress).length > 0) {
+    all[selectedDate] = progress;
+  } else {
+    delete all[selectedDate];
+  }
   saveAllProgress(all);
 }
 
 function loadWeights() {
+  if (cachedWeights) return cachedWeights;
   try {
     const data = localStorage.getItem(WEIGHT_KEY);
-    return data ? JSON.parse(data) : [];
+    cachedWeights = data ? JSON.parse(data) : [];
+    return cachedWeights;
   } catch {
-    return [];
+    cachedWeights = [];
+    return cachedWeights;
   }
 }
 
 function saveWeights(weights) {
-  localStorage.setItem(WEIGHT_KEY, JSON.stringify(weights));
+  cachedWeights = weights;
+  try {
+    localStorage.setItem(WEIGHT_KEY, JSON.stringify(weights));
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') showToast('Помилка збереження: сховище переповнене');
+    else throw e;
+  }
 }
 
 function loadExWeights() {
+  if (cachedExWeights) return cachedExWeights;
   try {
     const data = localStorage.getItem(EX_WEIGHT_KEY);
-    return data ? JSON.parse(data) : {};
+    cachedExWeights = data ? JSON.parse(data) : {};
+    return cachedExWeights;
   } catch {
-    return {};
+    cachedExWeights = {};
+    return cachedExWeights;
   }
 }
 
 function saveExWeights(weights) {
-  localStorage.setItem(EX_WEIGHT_KEY, JSON.stringify(weights));
-}
-
-function localDateStr(date) {
-  return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
-}
-
-function todayStr() {
-  return localDateStr(new Date());
-}
-
-function formatDate(str) {
-  const d = new Date(str + 'T00:00:00');
-  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
-}
-
-function formatDateLabel(str) {
-  if (str === todayStr()) return 'Сьогодні';
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  if (str === localDateStr(y)) return 'Вчора';
-  return new Date(str + 'T00:00:00').toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' });
-}
-
-function getWorkoutDates() {
-  const all = loadAllProgress();
-  return Object.keys(all).filter(d => {
-    const p = all[d];
-    return p && typeof p === 'object' && Object.keys(p).length > 0;
-  }).sort().reverse();
+  cachedExWeights = weights;
+  try {
+    localStorage.setItem(EX_WEIGHT_KEY, JSON.stringify(weights));
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') showToast('Помилка збереження: сховище переповнене');
+    else throw e;
+  }
 }
 
 function getAllKeys() {
@@ -235,9 +252,9 @@ function render() {
   const dn = document.getElementById('date-nav');
   dn.innerHTML = `
     <button class="dn-btn" data-delta="-1">◀</button>
-    <span class="dn-date" id="dn-label">${formatDateLabel(selectedDate)}</span>
+    <span class="dn-date" id="dn-label">${escapeHtml(formatDateLabel(selectedDate))}</span>
     <button class="dn-btn" data-delta="1">▶</button>
-    <input type="date" id="dn-picker" class="dn-picker" value="${selectedDate}" max="${todayLabel}">
+    <input type="date" id="dn-picker" class="dn-picker" value="${escapeHtml(selectedDate)}" max="${todayLabel}">
     ${selectedDate !== todayLabel ? `<button class="dn-btn dn-today" data-delta="today">📅 Сьогодні</button>` : ''}
   `;
   dn.querySelectorAll('.dn-btn').forEach(btn => {
@@ -250,7 +267,9 @@ function render() {
   const dnLabel = document.getElementById('dn-label');
   const dnPicker = document.getElementById('dn-picker');
   if (dnLabel && dnPicker) {
-    dnLabel.addEventListener('click', () => dnPicker.showPicker());
+    dnLabel.addEventListener('click', () => {
+      if (typeof dnPicker.showPicker === 'function') dnPicker.showPicker();
+    });
     dnPicker.addEventListener('change', () => {
       selectedDate = dnPicker.value;
       render();
@@ -272,12 +291,12 @@ function render() {
     blockEl.innerHTML = `
       <div class="block-header" data-index="${bi}">
         <div class="icon">${block.icon}</div>
-        <div class="title">${block.title}</div>
+        <div class="title">${escapeHtml(block.title)}</div>
         <div class="block-progress">${blockDone}/${blockTotal}</div>
         <div class="arrow">▾</div>
       </div>
       <div class="block-body" data-index="${bi}">
-        <div class="block-desc">${block.desc}</div>
+        <div class="block-desc">${escapeHtml(block.desc)}</div>
         ${block.exercises.map(ex => {
           const checked = progress[ex.key] ? 'checked' : '';
           const ew = exWeights[ex.key];
@@ -287,7 +306,7 @@ function render() {
               weightHtml = `
                 <div class="ex-weight">
                   <button class="ew-btn" data-key="${ex.key}" data-delta="-2.5">−</button>
-                  <span class="ew-val" data-key="${ex.key}">${ew} кг</span>
+                  <span class="ew-val" data-key="${ex.key}">${escapeHtml(ew)} кг</span>
                   <button class="ew-btn" data-key="${ex.key}" data-delta="2.5">+</button>
                 </div>
               `;
@@ -297,13 +316,13 @@ function render() {
           }
           return `
             <div class="exercise ${checked ? 'done' : ''}" data-key="${ex.key}">
-              <div class="ex-thumb"><img src="${ex.img}" alt="${ex.name}" loading="lazy"></div>
+              <div class="ex-thumb"><img src="${escapeHtml(ex.img)}" alt="${escapeHtml(ex.name)}" loading="lazy"></div>
               <div class="ex-info">
                 <div class="ex-info-top">
-                  <div class="ex-name">${ex.name}</div>
-                  <div class="ex-badge">${ex.badge}</div>
+                  <div class="ex-name">${escapeHtml(ex.name)}</div>
+                  <div class="ex-badge">${escapeHtml(ex.badge)}</div>
                 </div>
-                <div class="ex-desc">${ex.desc}</div>
+                <div class="ex-desc">${escapeHtml(ex.desc)}</div>
                 ${weightHtml}
               </div>
               <div class="ex-check">
@@ -342,37 +361,38 @@ function render() {
       }
       saveProgress(progress);
       exEl.classList.toggle('done', cb.checked);
-      render();
+      updateProgressUI();
     });
   });
 
   // Exercise weight events
   document.querySelectorAll('.ew-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const key = btn.dataset.key;
       const delta = btn.dataset.delta;
-      const exWeights = loadExWeights();
 
       if (delta === 'prompt') {
-        const val = prompt('Введіть вагу (кг):');
+        const val = await askWeight('Вага (кг)', '');
         if (val === null) return;
-        const num = parseFloat(val);
-        if (!num || num <= 0) { showToast('Некоректне значення'); return; }
-        exWeights[key] = num;
-      } else {
-        const step = parseFloat(delta);
-        const current = exWeights[key] || 0;
-        const next = Math.max(0, Math.round((current + step) * 10) / 10);
-        if (next <= 0) {
-          if (!confirm('Видалити вагу для цієї вправи?')) return;
-          delete exWeights[key];
-          saveExWeights(exWeights);
-          render();
-          return;
-        }
-        exWeights[key] = next;
+        const exWeights = loadExWeights();
+        exWeights[key] = val;
+        saveExWeights(exWeights);
+        render();
+        return;
       }
 
+      const exWeights = loadExWeights();
+      const step = parseFloat(delta);
+      const current = exWeights[key] || 0;
+      const next = Math.max(0, Math.round((current + step) * 10) / 10);
+      if (next <= 0) {
+        if (!confirm('Видалити вагу для цієї вправи?')) return;
+        delete exWeights[key];
+        saveExWeights(exWeights);
+        render();
+        return;
+      }
+      exWeights[key] = next;
       saveExWeights(exWeights);
       render();
     });
@@ -380,20 +400,36 @@ function render() {
 
   // Click on weight value to edit
   document.querySelectorAll('.ew-val').forEach(el => {
-    el.addEventListener('click', () => {
+    el.addEventListener('click', async () => {
       const key = el.dataset.key;
-      const exWeights = loadExWeights();
-      const current = exWeights[key] || '';
-      const val = prompt('Вага (кг):', current);
+      const current = loadExWeights()[key] || '';
+      const val = await askWeight('Вага (кг)', current);
       if (val === null) return;
-      const num = parseFloat(val);
-      if (!num || num <= 0) { showToast('Некоректне значення'); return; }
-      exWeights[key] = num;
+      const exWeights = loadExWeights();
+      exWeights[key] = val;
       saveExWeights(exWeights);
       render();
     });
   });
 
+  renderHistory();
+}
+
+function updateProgressUI() {
+  const progress = loadProgress();
+  const allKeys = getAllKeys();
+  const doneCount = allKeys.filter(k => progress[k]).length;
+  const totalCount = allKeys.length;
+  const pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${doneCount}/${totalCount} · ${pct}%`;
+  document.querySelectorAll('#blocks .block').forEach((blockEl, bi) => {
+    const block = WORKOUT[bi];
+    if (!block) return;
+    const blockDone = block.exercises.filter(e => progress[e.key]).length;
+    const bp = blockEl.querySelector('.block-progress');
+    if (bp) bp.textContent = `${blockDone}/${block.exercises.length}`;
+  });
   renderHistory();
 }
 
@@ -409,11 +445,61 @@ function resetProgress() {
   showToast('Прогрес скинуто');
 }
 
+let toastTimer = null;
+
 function showToast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 2000);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+function askWeight(title, initial) {
+  return new Promise(resolve => {
+    const dlg = document.getElementById('weight-dialog');
+    const dlgTitle = document.getElementById('dlg-title');
+    const input = document.getElementById('dlg-input');
+    const okBtn = document.getElementById('dlg-ok');
+    const cancelBtn = document.getElementById('dlg-cancel');
+
+    dlgTitle.textContent = title;
+    input.value = initial == null ? '' : initial;
+
+    const cleanup = () => {
+      dlg.removeEventListener('cancel', onCancel);
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancelClick);
+      input.removeEventListener('keydown', onKey);
+    };
+    const done = val => {
+      cleanup();
+      dlg.close();
+      resolve(val);
+    };
+    const onOk = () => {
+      const w = toWeight(input.value);
+      if (w === null) { showToast('Некоректне значення'); return; }
+      done(w);
+    };
+    const onCancel = e => {
+      e.preventDefault();
+      done(null);
+    };
+    const onCancelClick = () => done(null);
+    const onKey = e => {
+      if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+    };
+
+    dlg.addEventListener('cancel', onCancel);
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancelClick);
+    input.addEventListener('keydown', onKey);
+
+    dlg.showModal();
+    input.focus();
+    input.select();
+  });
 }
 
 // Weight tracking
@@ -426,17 +512,18 @@ function renderWeight() {
   const diff = current !== null && prev !== null ? (current - prev) : null;
   const min = sorted.length > 0 ? Math.min(...sorted.map(w => w.weight)) : null;
   const max = sorted.length > 0 ? Math.max(...sorted.map(w => w.weight)) : null;
+  const diffs = computeWeightDiffs(sorted);
 
   let html = '<div class="weight-summary">';
   if (current !== null) {
-    html += `<div class="weight-stat"><div class="val">${current}</div><div class="label">Поточна вага</div></div>`;
+    html += `<div class="weight-stat"><div class="val">${escapeHtml(current)}</div><div class="label">Поточна вага</div></div>`;
     if (diff !== null) {
       const sign = diff > 0 ? '+' : '';
       const cls = diff > 0 ? 'up' : diff < 0 ? 'down' : '';
       html += `<div class="weight-stat ${cls}"><div class="val">${sign}${diff.toFixed(1)}</div><div class="label">Зміна</div></div>`;
     }
-    html += `<div class="weight-stat"><div class="val">${min}</div><div class="label">Мінімум</div></div>`;
-    html += `<div class="weight-stat"><div class="val">${max}</div><div class="label">Максимум</div></div>`;
+    html += `<div class="weight-stat"><div class="val">${escapeHtml(min)}</div><div class="label">Мінімум</div></div>`;
+    html += `<div class="weight-stat"><div class="val">${escapeHtml(max)}</div><div class="label">Максимум</div></div>`;
   } else {
     html += '<div class="weight-stat" style="flex:2"><div class="val" style="font-size:0.9rem">—</div><div class="label">Додайте перше вимірювання</div></div>';
   }
@@ -444,16 +531,15 @@ function renderWeight() {
 
   html += `
     <div class="weight-form">
-      <input type="number" id="w-input" placeholder="Вага (кг)" step="0.1" min="20" max="300">
+      <input type="number" id="w-input" placeholder="Вага (кг)" step="0.1" min="20" max="300" inputmode="decimal">
       <input type="date" id="w-date" value="${todayStr()}">
       <button class="btn-add" id="w-add">+ Додати</button>
     </div>
   `;
 
   if (sorted.length > 0) {
-    sorted.forEach(w => {
-      const idx = weights.findIndex(x => x.id === w.id);
-      const wDiff = idx < weights.length - 1 ? (w.weight - weights[idx + 1].weight) : null;
+    sorted.forEach((w, i) => {
+      const wDiff = diffs[i];
       let diffHtml = '';
       if (wDiff !== null) {
         const sign = wDiff > 0 ? '+' : '';
@@ -463,7 +549,7 @@ function renderWeight() {
       html += `
         <div class="weight-entry" data-id="${w.id}">
           <span class="w-date">${formatDate(w.date)}</span>
-          <span class="w-val">${w.weight} кг</span>
+          <span class="w-val">${escapeHtml(w.weight)} кг</span>
           ${diffHtml}
           <div class="w-actions">
             <button class="w-btn w-btn-edit">✎</button>
@@ -511,9 +597,9 @@ function addWeight() {
   const input = document.getElementById('w-input');
   const dateInput = document.getElementById('w-date');
   const btn = document.getElementById('w-add');
-  const weight = parseFloat(input.value);
+  const weight = toWeight(input.value);
   const date = dateInput.value;
-  if (!weight || weight <= 0) { showToast('Введіть коректну вагу'); return; }
+  if (weight === null) { showToast('Введіть коректну вагу'); return; }
   if (!date) { showToast('Виберіть дату'); return; }
 
   const weights = loadWeights();
@@ -559,10 +645,7 @@ function renderHistory() {
   const container = document.getElementById('history-section');
   if (!container) return;
   const all = loadAllProgress();
-  const dates = Object.keys(all).filter(d => {
-    const p = all[d];
-    return p && typeof p === 'object' && Object.keys(p).length > 0;
-  }).sort().reverse();
+  const dates = Object.keys(all).filter(d => isValidDateEntry(all[d])).sort().reverse();
   const allKeys = getAllKeys();
   const total = allKeys.length;
   if (dates.length === 0) {
@@ -575,8 +658,8 @@ function renderHistory() {
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     const isSel = d === selectedDate;
     return `
-      <div class="history-entry ${isSel ? 'history-curr' : ''}" data-date="${d}">
-        <span class="h-date">${formatDate(d)}</span>
+      <div class="history-entry ${isSel ? 'history-curr' : ''}" data-date="${escapeHtml(d)}">
+        <span class="h-date">${escapeHtml(formatDate(d))}</span>
         <div class="h-bar"><div class="h-fill" style="width:${pct}%"></div></div>
         <span class="h-pct">${done}/${total} · ${pct}%</span>
       </div>
