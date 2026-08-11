@@ -106,3 +106,20 @@ describe('computeWeightDiffs', () => {
     expect(computeWeightDiffs(sorted)).toEqual([0.1, null]);
   });
 });
+
+describe('isValidDateEntry', () => {
+  it('accepts a non-empty object of booleans', () => {
+    expect(isValidDateEntry({ 'squat': true, 'bench': false })).toBe(true);
+  });
+
+  it('rejects arrays, dates and non-boolean values', () => {
+    expect(isValidDateEntry([])).toBe(false);
+    expect(isValidDateEntry(new Date())).toBe(false);
+    expect(isValidDateEntry({ 'leg-press': 42 })).toBe(false);
+    expect(isValidDateEntry({ 'squat': 'yes' })).toBe(false);
+    expect(isValidDateEntry({})).toBe(false);
+    expect(isValidDateEntry(null)).toBe(false);
+    expect(isValidDateEntry(undefined)).toBe(false);
+    expect(isValidDateEntry(42)).toBe(false);
+  });
+});

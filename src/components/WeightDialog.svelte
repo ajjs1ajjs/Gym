@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { toWeight } from '../lib/format';
 
   let {
@@ -23,13 +22,8 @@
     onclose(w);
   }
 
-  onMount(() => {
-    if (dialogEl && open) {
-      value = initial === null ? '' : String(initial);
-      dialogEl.showModal();
-    }
-  });
-
+  // $effect (runs before onMount in Svelte 5) handles show/open/close; there is
+  // no need for a duplicate onMount block.
   $effect(() => {
     if (!dialogEl) return;
     if (open) {

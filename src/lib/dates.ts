@@ -38,5 +38,7 @@ export function formatDateLabel(str: string): string {
 }
 
 export function isValidDateEntry(p: unknown): p is Record<string, boolean> {
-  return !!p && typeof p === 'object' && Object.keys(p).length > 0;
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return false;
+  const keys = Object.keys(p);
+  return keys.length > 0 && keys.every((k) => typeof (p as Record<string, unknown>)[k] === 'boolean');
 }

@@ -19,7 +19,9 @@
 
   function changeWeight(delta: number): void {
     if (weight === undefined) return;
-    const next = Math.max(0, Math.round((weight + delta) * 10) / 10);
+    // Floor at 0.5, never 0: a 0 weight would be interpreted as "remove the
+    // setting" in App.setExWeight, silently deleting the user's weight.
+    const next = Math.max(0.5, Math.round((weight + delta) * 10) / 10);
     onweight(next);
   }
 
