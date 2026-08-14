@@ -1,55 +1,78 @@
-# 🏋️ Gym Tracker
+# Gym Tracker
 
-Щоденний PWA-трекер тренувань для тренажерного залу. Працює офлайн, можна встановити на телефон як додаток.
+<p align="center">
+  <img src="docs/banner.svg" width="100%" alt="Gym Tracker">
+</p>
 
-## ✨ Можливості
+Приватний PWA-застосунок для тренувань у залі. Ведення ваг, плани тренувань та заміри тіла. Працює офлайн і встановлюється на телефон як звичайний застосунок.
 
-- ✅ Відмітка виконаних вправ
-- 📊 Прогрес-бар у шапці та по блоках
-- 📅 Навігація по днях + історія тренувань
-- ⚖️ Трекінг ваги (з графіком змін) та ваг для вправ
-- 📲 Встановлюється як PWA (офлайн)
-- 💾 Збереження прогресу в localStorage (сумісно з v2)
-- 🖼️ Ілюстрації та опис до кожної вправи
+<p align="center">
+  <img src="https://img.shields.io/badge/Svelte-5-orange?logo=svelte&logoColor=white" alt="Svelte 5">
+  <img src="https://img.shields.io/badge/TypeScript-typed-blue?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/PWA-offline-cyan" alt="PWA">
+  <img src="https://img.shields.io/badge/tests-23%20passing-green" alt="Tests">
+  <img src="https://img.shields.io/badge/bundle-23KB%20gzip-00d4aa" alt="Bundle">
+</p>
 
-## 📋 Структура тренування
+---
 
-| Блок | Вправи |
-|------|--------|
-| **Силовий блок** | Жим ногами, Згинання/розгинання ніг, Тяга верхнього блоку, Жим на груди, Біцепс, Трицепс |
-| **Інтенсивний фінішер** | Бурпі (3-4×10) |
-| **Блок для кору** | Прес (3×20), Планка (3×45-60с) |
-| **Кардіо** | Ходьба з нахилом (20-30хв, пульс 110-130) |
+## Скріншоти
 
-## 🛠️ Технології
+<p align="center">
+  <img src="docs/screenshots/main.png" width="28%" alt="Головна — тренування дня">
+  <img src="docs/screenshots/weights.png" width="28%" alt="Контроль ваги">
+  <img src="docs/screenshots/history.png" width="28%" alt="Історія тренувань">
+</p>
 
-- **Svelte 5** — компілюється в чистий DOM-JS, нуль runtime-оверхеду
-- **TypeScript** — строга типізація
-- **Vite** — швидкий білд, хешування асетів
-- **vite-plugin-pwa** — автогенерація service worker (precache)
-- **Vitest** + **@testing-library/svelte** — тести
+---
+
+## Можливості
+
+- 💪 Ведення планів тренувань
+- 📊 Графіки ваги та зміни тіла
+- 🏋️ Заміри тіла + фото тіла
+- 🔒 Офлайн-режим — застосунок працює без інтернету (PWA)
+- 💾 Локальне зберігання даних у `localStorage` (оновлення у v2)
+- 📱 Встановлення на телефон та планшет як рідний застосунок
+
+## Структура тренувань
+
+| День | Фокус |
+|------|-------|
+| **Верхня частина тіла** | Груди, біцепси/трицепси, плечі, спина, жим, тяга |
+| **Нижня частина тіла** | Ноги (3–4×10) |
+| **М'язи для тіла** | Ноги (3×20), ягодиці (3×45–60с) |
+| **Тіло** | Прес та розтяжка (20–30 хв, пульс 110–130) |
+
+## Технології
+
+- **Svelte 5** — реактивність із мінімальним DOM, без runtime-бібліотек
+- **TypeScript** — повна типізація
+- **Vite** — швидкий білд, максимальна швидкість
+- **vite-plugin-pwa** — автоматичний service worker (precache + cache-first)
+- **Vitest** + **@testing-library/svelte** — 23 тести
 - **ESLint** + **svelte-check** — якість коду
 
-## 🚀 Розробка
+## Запуск
 
 ```bash
-npm install        # встановити залежності
+npm install        # встановлення залежностей
 npm run dev        # dev-сервер
 npm test           # тести
 npm run check      # type-check (svelte-check)
 npm run lint       # eslint
 npm run build      # продакшн-білд у dist/
-npm run preview    # перегляд зібраного застосунку
+npm run preview    # перегляд білд-результату
 ```
 
-## 📦 Деплой
+## Деплой
 
-Пуш у гілку `main` запускає GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → публікація `dist/` у гілку `gh-pages`.
+При кожному пуші у гілку `main` запускається GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → деплой `dist/` у гілку `gh-pages`.
 
-## 🚀 Посилання
+## Посилання
 
-[https://ajjs1ajjs.github.io/Gym/](https://ajjs1ajjs.github.io/Gym/)
+Жива версія: [https://ajjs1ajjs.github.io/Gym/](https://ajjs1ajjs.github.io/Gym/)
 
-## 📜 Історія змін
+## Історія версій
 
 Див. [CHANGELOG.md](CHANGELOG.md).
