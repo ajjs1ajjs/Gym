@@ -69,6 +69,8 @@ npm run preview    # перегляд білд-результату
 
 При кожному пуші у гілку `main` запускається GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → деплой `dist/` у гілку `gh-pages`.
 
+> **Цільове середовище:** проєкт повністю сумісний із **Ubuntu / Debian** серверами — збірка, тести та деплой у CI працюють на `ubuntu-latest`. Застосунок статичний (PWA), для розгортання `dist/` достатньо будь-якого веб-сервера (nginx, Caddy тощо).
+
 ## Посилання
 
 Жива версія: [https://ajjs1ajjs.github.io/Gym/](https://ajjs1ajjs.github.io/Gym/)
