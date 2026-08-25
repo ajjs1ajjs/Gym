@@ -1,4 +1,8 @@
+<div align="center">
+
 # Gym Tracker
+
+### Offline-first workout and body progress tracker
 
 <p align="center">
   <img src="docs/banner.svg" width="100%" alt="Gym Tracker">
@@ -14,9 +18,11 @@
   <img src="https://img.shields.io/badge/bundle-23KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
+</div>
+
 ---
 
-## Скріншоти
+## 🖼️ Screenshots
 
 <p align="center">
   <img src="docs/screenshots/main.png" width="28%" alt="Головна — тренування дня">
@@ -26,7 +32,7 @@
 
 ---
 
-## Можливості
+## ✨ Features
 
 - 💪 Ведення планів тренувань
 - 📊 Графіки ваги та зміни тіла
@@ -53,7 +59,7 @@
 - **Vitest** + **@testing-library/svelte** — 23 тести
 - **ESLint** + **svelte-check** — якість коду
 
-## Запуск
+## 🚀 Getting started
 
 ```bash
 npm install        # встановлення залежностей
