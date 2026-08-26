@@ -1,6 +1,6 @@
 {
   "name": "gym-tracker",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "private": true,
   "type": "module",
   "description": "Р©РѕРґРµРЅРЅРёР№ PWA-С‚СЂРµРєРµСЂ С‚СЂРµРЅСѓРІР°РЅСЊ (Svelte 5 + TypeScript + Vite)",

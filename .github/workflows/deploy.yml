@@ -20,7 +20,11 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -47,9 +51,11 @@ jobs:
         run: npm run build
 
       - name: Configure Pages
+        if: runner.os == 'Linux'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: runner.os == 'Linux'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
