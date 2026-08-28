@@ -11,8 +11,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -50,23 +48,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Configure Pages
+      - name: Publish production build to public repository
         if: runner.os == 'Linux'
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages artifact
-        if: runner.os == 'Linux'
-        uses: actions/upload-pages-artifact@v3
+        uses: peaceiris/actions-gh-pages@1ef5a1b1df4c63fe21a2242edbee6cac921ece01 # v4.1.0
         with:
-          path: ./dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          personal_token: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          external_repository: ajjs1ajjs/Gym
+          publish_dir: ./dist
+          publish_branch: main
