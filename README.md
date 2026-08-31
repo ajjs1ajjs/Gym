@@ -1,4 +1,15 @@
-<div align="center">
+﻿<div align="center">
+
+# Gym Tracker — Source Code
+
+[![Deployed to](https://img.shields.io/badge/Deployed_to-Gym-blue)](https://github.com/ajjs1ajjs/Gym)
+[![Website](https://img.shields.io/badge/Website-ajjs1ajjs.github.io%2FGym-green)](https://ajjs1ajjs.github.io/Gym/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/ajjs1ajjs/Gym-source/deploy.yml?label=CI)](https://github.com/ajjs1ajjs/Gym-source/actions)
+
+> **Це репозиторій з вихідним кодом Gym workout tracker PWA.**
+> Готовий продукт деплоїться в: **https://github.com/ajjs1ajjs/Gym**
+> Офіційний сайт: **https://ajjs1ajjs.github.io/Gym/**
 
 # Gym Tracker
 
@@ -19,7 +30,6 @@
 </p>
 
 </div>
-
 ---
 
 ## 🖼️ Screenshots
