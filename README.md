@@ -84,32 +84,17 @@ npm run build      # продакшн-білд у dist/
 npm run preview    # перегляд білд-результату
 ```
 
-### Windows (PowerShell)
-
-```powershell
-winget install OpenJS.NodeJS.LTS   # Node.js 20+ (потрібен для engines >=20)
-npm install                        # встановлення залежностей
-npm run dev                        # dev-сервер
-npm test                           # тести
-npm run check                      # type-check (svelte-check)
-npm run lint                       # eslint
-npm run build                      # продакшн-білд у dist\
-npm run preview                    # перегляд білд-результату
-```
-
-> Проєкт повністю кросплатформний: усі скрипти (`npm`, `vite`) працюють однаково на Linux і Windows. CI перевіряє збірку та тести одночасно на `ubuntu-latest` і `windows-latest`.
-
 ### Локальний запуск продакшн-білда
 
 ```bash
-npx serve dist     # Linux / macOS / Windows — будь-яка ОС з Node.js
+npx serve dist     # будь-який Linux-сервер з Node.js
 ```
 
 ## Деплой
 
 При кожному пуші у гілку `main` запускається GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → деплой `dist/` у гілку `gh-pages`.
 
-> **Цільові середовища:** проєкт сумісний з **Ubuntu / Debian** та **Windows** — CI (`deploy.yml`) запускає lint → type-check → тести → build на обох ОС (матриця `ubuntu-latest` + `windows-latest`). Деплой `dist/` у GitHub Pages виконується з Ubuntu. Застосунок статичний (PWA), для самостійного розгортання `dist/` достатньо будь-якого веб-сервера: **nginx / Caddy** на Linux або **IIS / Caddy / npx serve** на Windows.
+> **Цільове середовище:** проєкт сумісний з **Ubuntu / Debian** — CI (`deploy.yml`) запускає lint → type-check → тести → build на `ubuntu-latest`. Деплой `dist/` у GitHub Pages виконується з Ubuntu. Застосунок статичний (PWA), для самостійного розгортання `dist/` достатньо будь-якого веб-сервера: **nginx / Caddy** на Linux.
 
 ## Посилання
 
