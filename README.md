@@ -5,7 +5,7 @@
 [![Deployed to](https://img.shields.io/badge/Deployed_to-Gym-blue)](https://github.com/ajjs1ajjs/Gym)
 [![Website](https://img.shields.io/badge/Website-ajjs1ajjs.github.io%2FGym-green)](https://ajjs1ajjs.github.io/Gym/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/ajjs1ajjs/Gym-source/deploy.yml?label=CI)](https://github.com/ajjs1ajjs/Gym-source/actions)
+[![CI](https://img.shields.io/github/actions/workflow/status/ajjs1ajjs/Gym/deploy.yml?label=CI)](https://github.com/ajjs1ajjs/Gym/actions/workflows/deploy.yml)
 
 > **Це репозиторій з вихідним кодом Gym workout tracker PWA.**
 > Готовий продукт деплоїться в: **https://github.com/ajjs1ajjs/Gym**
@@ -25,7 +25,7 @@
   <img src="https://img.shields.io/badge/Svelte-5-orange?logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/TypeScript-typed-blue?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PWA-offline-cyan" alt="PWA">
-  <img src="https://img.shields.io/badge/tests-23%20passing-green" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-25%20passing-green" alt="Tests">
   <img src="https://img.shields.io/badge/bundle-23KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
@@ -66,12 +66,22 @@
 - **TypeScript** — повна типізація
 - **Vite** — швидкий білд, максимальна швидкість
 - **vite-plugin-pwa** — автоматичний service worker (precache + cache-first)
-- **Vitest** + **@testing-library/svelte** — 23 тести
+- **Vitest** + **@testing-library/svelte** — 25 тестів
 - **ESLint** + **svelte-check** — якість коду
 
 ## 🚀 Getting started
 
 ### Ubuntu / Debian (WSL теж підходить)
+
+Автоматичний встановлювач (сам ставить Node.js 22, залежності, білдить і піднімає локальний сервер на `http://localhost:8080`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.sh | bash
+# або dev-сервер (Vite, http://localhost:5173):
+curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.sh | bash -s -- --dev
+```
+
+Вручну:
 
 ```bash
 sudo apt update && sudo apt install -y nodejs npm   # або через nvm
@@ -84,17 +94,37 @@ npm run build      # продакшн-білд у dist/
 npm run preview    # перегляд білд-результату
 ```
 
+### Windows
+
+Автоматичний встановлювач (PowerShell; перевіряє/встановлює Node.js 20+ через winget, білдить і піднімає локальний сервер на `http://localhost:8080`):
+
+```powershell
+irm https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.ps1 | iex
+# або dev-сервер (Vite, http://localhost:5173):
+$env:GYM_DEV = "1"; irm https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.ps1 | iex
+```
+
+Вручну (Node.js 20+ з [nodejs.org](https://nodejs.org) або `winget install --id OpenJS.NodeJS.LTS -e`):
+
+```powershell
+git clone https://github.com/ajjs1ajjs/Gym.git
+cd Gym
+npm install
+npm run dev        # dev-сервер
+npm run build      # продакшн-білд у dist/
+```
+
 ### Локальний запуск продакшн-білда
 
 ```bash
-npx serve dist     # будь-який Linux-сервер з Node.js
+npx serve dist     # Linux/Windows/macOS — будь-де, де є Node.js
 ```
 
 ## Деплой
 
-При кожному пуші у гілку `main` запускається GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → деплой `dist/` у гілку `gh-pages`.
+При кожному пуші у гілку `main` (окрім змін лише в `README.md`/`CHANGELOG.md`) запускається GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → публікація `dist/` через `peaceiris/actions-gh-pages`.
 
-> **Цільове середовище:** проєкт сумісний з **Ubuntu / Debian** — CI (`deploy.yml`) запускає lint → type-check → тести → build на `ubuntu-latest`. Деплой `dist/` у GitHub Pages виконується з Ubuntu. Застосунок статичний (PWA), для самостійного розгортання `dist/` достатньо будь-якого веб-сервера: **nginx / Caddy** на Linux.
+> **Локальна розробка:** проєкт сумісний з **Ubuntu / Debian** (`install.sh`) та **Windows** (`install.ps1`) — див. розділ [🚀 Getting started](#-getting-started). CI (`deploy.yml`) запускає lint → type-check → тести → build на `ubuntu-latest`. Застосунок статичний (PWA), для самостійного розгортання `dist/` достатньо будь-якого веб-сервера: **nginx / Caddy** на Linux або IIS/будь-який статичний хостинг на Windows.
 
 ## Посилання
 

@@ -1,9 +1,9 @@
 {
   "name": "gym-tracker",
-  "version": "3.0.3",
+  "version": "3.1.0",
   "private": true,
   "type": "module",
-  "description": "Р©РѕРґРµРЅРЅРёР№ PWA-С‚СЂРµРєРµСЂ С‚СЂРµРЅСѓРІР°РЅСЊ (Svelte 5 + TypeScript + Vite)",
+  "description": "Щоденний PWA-трекер тренувань (Svelte 5 + TypeScript + Vite)",
   "scripts": {
     "dev": "vite",
     "build": "svelte-check --tsconfig ./tsconfig.json && vite build",
