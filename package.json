@@ -1,6 +1,6 @@
 {
   "name": "gym-tracker",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "private": true,
   "type": "module",
   "description": "Щоденний PWA-трекер тренувань (Svelte 5 + TypeScript + Vite)",
