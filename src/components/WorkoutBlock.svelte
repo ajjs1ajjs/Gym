@@ -40,6 +40,8 @@
     class="block-header"
     role="button"
     tabindex="0"
+    aria-expanded={open}
+    aria-controls="block-body-{block.title}"
     onclick={toggle}
     onkeydown={onKeydown}
   >
@@ -48,7 +50,7 @@
     <div class="block-progress">{blockDone}/{blockTotal}</div>
     <div class="arrow" class:open>▾</div>
   </div>
-  <div class="block-body" class:open>
+  <div id="block-body-{block.title}" class="block-body" class:open>
     <div class="block-desc">{block.desc}</div>
     {#each block.exercises as ex (ex.key)}
       <ExerciseCard

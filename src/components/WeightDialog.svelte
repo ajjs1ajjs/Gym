@@ -15,10 +15,15 @@
 
   let dialogEl: HTMLDialogElement | undefined = $state();
   let value = $state('');
+  let error = $state('');
 
   function confirmValue(): void {
     const w = toWeight(value);
-    if (w === null) return;
+    if (w === null) {
+      error = 'Введіть коректну вагу (0.5 - 999)';
+      return;
+    }
+    error = '';
     onclose(w);
   }
 
@@ -46,8 +51,12 @@
     inputmode="decimal"
     placeholder="0.5"
     bind:value
-    onkeydown={(e) => e.key === 'Enter' && confirmValue()}
+    onkeydown={(e) => { error = ''; if (e.key === 'Enter') confirmValue(); }}
+    oninput={() => error && (error = '')}
+    aria-invalid={error ? 'true' : 'false'}
+    aria-describedby={error ? 'dlg-error' : undefined}
   />
+  {#if error}<div id="dlg-error" class="dlg-error">{error}</div>{/if}
   <div class="dlg-actions">
     <button type="button" class="btn" id="dlg-cancel" onclick={() => onclose(null)}>Скасувати</button>
     <button type="button" class="btn btn-primary" id="dlg-ok" onclick={confirmValue}>ОК</button>

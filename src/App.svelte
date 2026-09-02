@@ -140,14 +140,20 @@
   }
 
   onMount(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
+    const onBeforeInstall = (e: Event) => {
       e.preventDefault();
       deferredPrompt = e as BeforeInstallPromptEvent;
-    });
-    window.addEventListener('appinstalled', () => {
+    };
+    const onInstalled = () => {
       deferredPrompt = null;
       showToast('Дякуємо за встановлення!');
-    });
+    };
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
   });
 </script>
 
