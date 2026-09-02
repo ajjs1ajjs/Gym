@@ -76,7 +76,7 @@
   function setExWeight(key: string, value: number): void {
     persist(() => {
       const next = { ...exWeights };
-      if (value <= 0) delete next[key];
+      if (value < 0) delete next[key];
       else next[key] = value;
       exWeights = next;
       saveExWeights(next);
@@ -103,15 +103,25 @@
     if (!confirm(`Скинути прогрес на ${label}?`)) return;
     const rest = { ...all };
     delete rest[selectedDate];
-    all = rest;
-    persist(() => saveAllProgress(all));
+    try {
+      persist(() => saveAllProgress(rest));
+      all = rest;
+    } catch (_e /* eslint-disable-line @typescript-eslint/no-unused-vars */) {
+      showToast('Помилка скидання прогресу');
+      return;
+    }
     selectedDate = todayStr();
     showToast('Прогрес скинуто');
   }
 
   function addWeight(weight: number, date: string): void {
     persist(() => {
-      weights = [...weights, { id: Date.now(), date, weight }].sort(byDateDesc);
+      const existing = weights.find((w) => w.date === date);
+      if (existing) {
+        weights = weights.map((w) => (w.date === date ? { ...w, weight } : w)).sort(byDateDesc);
+      } else {
+        weights = [...weights, { id: Date.now(), date, weight }].sort(byDateDesc);
+      }
       saveWeights(weights);
     });
   }
