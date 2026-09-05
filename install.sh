@@ -4,7 +4,7 @@
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.sh | bash
-#   bash install.sh            # build + serve dist/ on http://localhost:8075
+#   bash install.sh            # build + serve dist/ on http://localhost:8080
 #   bash install.sh --dev      # Vite dev server on http://localhost:5173
 #
 # Everything missing is installed automatically: Node.js 22 (NodeSource),
@@ -117,14 +117,14 @@ npm run build
 log "==============================================="
 log " Gym Tracker is ready"
 log "   Build output: $REPO_ROOT/dist"
-log "   Serving at:   http://localhost:8075"
+log "   Serving at:   http://localhost:8080"
 log "==============================================="
 
 if command -v npx >/dev/null 2>&1; then
-    exec npx --yes serve dist -l 8075
+    exec npx --yes serve dist -l 8080
 elif command -v python3 >/dev/null 2>&1; then
     cd dist
-    exec python3 -m http.server 8075
+    exec python3 -m http.server 8080
 else
     fail "Neither 'npx' nor 'python3' found to serve dist/. Serve $REPO_ROOT/dist with any static file server."
 fi
