@@ -73,7 +73,7 @@
 
 ### Ubuntu / Debian (WSL теж підходить)
 
-Автоматичний встановлювач (сам ставить Node.js 22, залежності, білдить і піднімає локальний сервер на `http://localhost:8080`):
+Автоматичний встановлювач (сам ставить Node.js 22, залежності, білдить і піднімає локальний сервер на `http://localhost:8075`):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.sh | bash
@@ -96,7 +96,7 @@ npm run preview    # перегляд білд-результату
 
 ### Windows
 
-Автоматичний встановлювач (PowerShell; перевіряє/встановлює Node.js 20+ через winget, білдить і піднімає локальний сервер на `http://localhost:8080`):
+Автоматичний встановлювач (PowerShell; перевіряє/встановлює Node.js 20+ через winget, білдить і піднімає локальний сервер на `http://localhost:8075`):
 
 ```powershell
 irm https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.ps1 | iex

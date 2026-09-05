@@ -4,7 +4,7 @@
 #
 # Usage (PowerShell):
 #   irm https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.ps1 | iex
-#   .\install.ps1            # build + serve dist/ on http://localhost:8080
+#   .\install.ps1            # build + serve dist/ on http://localhost:8075
 #   .\install.ps1 -Dev       # Vite dev server on http://localhost:5173
 #
 # When piped through `irm | iex` there is no way to pass -Dev directly (iex
@@ -149,7 +149,7 @@ if ($LASTEXITCODE -ne 0) { Write-Err "npm run build failed."; exit $LASTEXITCODE
 Write-Log "==============================================="
 Write-Log " Gym Tracker is ready"
 Write-Log "   Build output: $RepoRoot\dist"
-Write-Log "   Serving at:   http://localhost:8080"
+Write-Log "   Serving at:   http://localhost:8075"
 Write-Log "==============================================="
 
-npx --yes serve dist -l 8080
+npx --yes serve dist -l 8075
