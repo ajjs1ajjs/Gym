@@ -29,6 +29,8 @@
   <img src="https://img.shields.io/badge/bundle-23KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
+[**🌐 Live Site**](https://ajjs1ajjs.github.io/Gym/) · [Releases](https://github.com/ajjs1ajjs/Gym/releases) · [Actions](https://github.com/ajjs1ajjs/Gym/actions)
+
 </div>
 ---
 
