@@ -36,11 +36,11 @@ function Check-WindowsVersion {
     $osVersion = [System.Environment]::OSVersion.Version
     $build = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").CurrentBuild
 
-    $supportedBuilds = @(19044, 19045, 20049, 21313, 21382, 22000, 22336, 22621, 22631, 23466, 23530, 25398)
+    $supportedBuilds = @(19044, 19045, 20049, 20348, 21313, 21382, 22000, 22336, 22621, 22631, 23466, 23530, 25398)
 
     if (-not ($build -in $supportedBuilds)) {
         Write-Err "Unsupported Windows version: Build $build."
-        Write-Host "Supported: Windows 10 21H1/21H2, Windows 11 22H2+, Windows Server 2022/2025."
+        Write-Host "Supported: Windows 10 21H1+, Windows 11 22H2+, Windows Server 2022/2025."
         exit 1
     }
     Write-Log "Detected Windows Build $build — supported."
