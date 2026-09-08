@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.1] - 2026-09-08
+
+### Виправлено
+
+- **GitHub Actions помилки**: виправлено тести `pwa-offline.test.ts` та `storage-quota.test.ts` для коректної роби з ESLint
+- **TypeScript типи**: додано `vitest/globals` до `tsconfig.json` для підтримки тестів
+- **Node.js версія**: оновлено з 20 до 22 у всіх workflow файлах та `package.json`
+
 ## [3.1.0] - 2026-09-01
 
 ### Додано

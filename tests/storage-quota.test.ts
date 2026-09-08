@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, expect, beforeEach } from 'vitest';
 import { StorageQuotaError } from '../src/lib/storage';
 
 describe('Storage quota error handling', () => {
@@ -20,8 +20,6 @@ describe('Storage quota error handling', () => {
             }
             return originalSetItem.call(localStorage, key, value);
         };
-
-        const { saveAllProgress } = import('../src/lib/storage');
 
         // We can't dynamically import in test, so test the pattern differently
         // Just verify the error class exists and can be thrown
