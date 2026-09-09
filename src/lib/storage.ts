@@ -16,10 +16,35 @@ const WEIGHT_KEY = 'gym-tracker-weights';
 const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
 const LEGACY_KEY = 'gym-tracker-progress';
 
-function parse<T>(raw: string | null): T | null {
+function isDayProgress(v: unknown): v is DayProgress {
+  return typeof v === 'object' && v !== null && !Array.isArray(v) &&
+    Object.values(v).every((val): val is boolean => typeof val === 'boolean');
+}
+
+function isAllProgress(v: unknown): v is AllProgress {
+  return typeof v === 'object' && v !== null && !Array.isArray(v) &&
+    Object.values(v).every(isDayProgress);
+}
+
+function isWeightEntryArray(v: unknown): v is WeightEntry[] {
+  return Array.isArray(v) && v.every((w): w is WeightEntry =>
+    typeof w === 'object' && w !== null &&
+    typeof w.id === 'number' && typeof w.date === 'string' && typeof w.weight === 'number'
+  );
+}
+
+function isExWeights(v: unknown): v is Record<string, number> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v) &&
+    Object.values(v).every((val): val is number => typeof val === 'number');
+}
+
+function parse<T>(raw: string | null, validator: (v: unknown) => v is T): T | null {
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw);
+    if (validator(parsed)) return parsed;
+    console.error('Invalid schema for storage key');
+    return null;
   } catch {
     return null;
   }
@@ -37,13 +62,15 @@ function persist(key: string, value: unknown): void {
 }
 
 export function loadAllProgress(): AllProgress {
-  const data = parse<AllProgress>(localStorage.getItem(STORAGE_KEY));
-  if (data && typeof data === 'object') return data;
+  const data = parse<AllProgress>(localStorage.getItem(STORAGE_KEY), isAllProgress);
+  if (data) return data;
 
   const old = localStorage.getItem(LEGACY_KEY);
   if (old) {
-    const p = parse<Record<string, unknown>>(old);
-    if (p && typeof p === 'object') {
+    const p = parse<Record<string, unknown>>(old, (v): v is Record<string, unknown> =>
+      typeof v === 'object' && v !== null && !Array.isArray(v)
+    );
+    if (p) {
       const hasDateKeys = Object.keys(p).some((k) => DATE_RE.test(k));
       const migrated: AllProgress = hasDateKeys ? (p as AllProgress) : { [todayStr()]: p as DayProgress };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
@@ -59,8 +86,8 @@ export function saveAllProgress(all: AllProgress): void {
 }
 
 export function loadWeights(): WeightEntry[] {
-  const data = parse<WeightEntry[]>(localStorage.getItem(WEIGHT_KEY));
-  return Array.isArray(data) ? data : [];
+  const data = parse<WeightEntry[]>(localStorage.getItem(WEIGHT_KEY), isWeightEntryArray);
+  return data ?? [];
 }
 
 export function saveWeights(weights: WeightEntry[]): void {
@@ -68,10 +95,12 @@ export function saveWeights(weights: WeightEntry[]): void {
 }
 
 export function loadExWeights(): Record<string, number> {
-  const data = parse<Record<string, number>>(localStorage.getItem(EX_WEIGHT_KEY));
-  return data && typeof data === 'object' ? data : {};
+  const data = parse<Record<string, number>>(localStorage.getItem(EX_WEIGHT_KEY), isExWeights);
+  return data ?? {};
 }
 
 export function saveExWeights(weights: Record<string, number>): void {
   persist(EX_WEIGHT_KEY, weights);
 }
+
+export { STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_KEY, LEGACY_KEY };

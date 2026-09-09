@@ -15,9 +15,13 @@ export function todayStr(): string {
 }
 
 export function shiftDate(dateStr: string, delta: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + delta);
-  return localDateStr(d);
+  const parts = dateStr.split('-').map(Number);
+  const y = parts[0];
+  const m = parts[1];
+  const d = parts[2];
+  if (y === undefined || m === undefined || d === undefined) return todayStr();
+  const date = new Date(y, m - 1, d + delta);
+  return localDateStr(date);
 }
 
 export function formatDate(str: string): string {

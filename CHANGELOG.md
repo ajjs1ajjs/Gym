@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.3.0] - 2026-09-09
+
+### Виправлено
+
+- **CI/CD**: виправлено `actions/checkout@v5` → `actions/checkout@v4` (v5 ще не існує)
+- **Безпека**: додано CSP meta-тег у `index.html` для defense-in-depth
+- **Надійність**: додано глобальні error handlers (`window.onerror`, `unhandledrejection`) для запобігання white screen
+- **Цілісність даних**: додано схему валідацію localStorage (storage.ts) — захист від пошкоджених/невалідних даних
+- **Cross-tab sync**: додано версіонування сховища + `storage` event listener для синхронізації між вкладками
+- **DST bug**: виправлено `shiftDate()` — використовує `new Date(y, m, d)` замість парсингу рядка
+- **Performance**: оптимізовано оновлення ваг — вставка замість повного сортування (O(n) замість O(n log n))
+- **Lint**: виправлено unused variable в storage event handler
+
+### Змінено
+
+- **Storage**: експортувані константи ключів (`STORAGE_KEY`, `WEIGHT_KEY`, `EX_WEIGHT_KEY`) для cross-tab sync
+
 ## [3.2.1] - 2026-09-08
 
 ### Виправлено

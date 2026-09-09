@@ -1,61 +1,82 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import ProgressHeader from './components/ProgressHeader.svelte';
-  import DateNav from './components/DateNav.svelte';
-  import WorkoutBlock from './components/WorkoutBlock.svelte';
-  import WeightSection from './components/WeightSection.svelte';
-  import HistorySection from './components/HistorySection.svelte';
-  import WeightDialog from './components/WeightDialog.svelte';
-  import { WORKOUT, getAllKeys } from './lib/workout';
-  import {
-    loadAllProgress,
-    saveAllProgress,
-    loadWeights,
-    saveWeights,
-    loadExWeights,
-    saveExWeights,
-    StorageQuotaError,
-  } from './lib/storage';
-  import { todayStr, shiftDate, formatDate } from './lib/dates';
-  import { byDateDesc } from './lib/compute';
-  import type { AllProgress } from './lib/storage';
-  import type { WeightEntry } from './lib/compute';
+import { onMount } from 'svelte';
+import ProgressHeader from './components/ProgressHeader.svelte';
+import DateNav from './components/DateNav.svelte';
+import WorkoutBlock from './components/WorkoutBlock.svelte';
+import WeightSection from './components/WeightSection.svelte';
+import HistorySection from './components/HistorySection.svelte';
+import WeightDialog from './components/WeightDialog.svelte';
+import { WORKOUT, getAllKeys } from './lib/workout';
+import {
+  loadAllProgress,
+  saveAllProgress,
+  loadWeights,
+  saveWeights,
+  loadExWeights,
+  saveExWeights,
+  StorageQuotaError,
+  STORAGE_KEY,
+  WEIGHT_KEY,
+  EX_WEIGHT_KEY,
+} from './lib/storage';
+import { todayStr, shiftDate, formatDate } from './lib/dates';
+import { byDateDesc } from './lib/compute';
+import type { AllProgress } from './lib/storage';
+import type { WeightEntry } from './lib/compute';
 
-  interface BeforeInstallPromptEvent extends Event {
-    prompt: () => Promise<void>;
-    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
+const STORAGE_VERSION_KEY = 'gym-tracker-version';
+
+function getVersion(): number {
+  const v = localStorage.getItem(STORAGE_VERSION_KEY);
+  return v ? parseInt(v, 10) : 0;
+}
+
+function setVersion(v: number): void {
+  localStorage.setItem(STORAGE_VERSION_KEY, String(v));
+}
+
+let selectedDate = $state(todayStr());
+let all = $state<AllProgress>(loadAllProgress());
+let weights = $state<WeightEntry[]>(loadWeights());
+let exWeights = $state<Record<string, number>>(loadExWeights());
+let toastMsg = $state('');
+let dialog = $state<{ key: string; initial: number | null } | null>(null);
+let deferredPrompt = $state<BeforeInstallPromptEvent | null>(null);
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+const allKeys = getAllKeys();
+const total = allKeys.length;
+
+const progress = $derived(all[selectedDate] ?? {});
+const doneCount = $derived(allKeys.filter((k) => progress[k]).length);
+const sortedWeights = $derived([...weights].sort(byDateDesc));
+
+function showToast(msg: string): void {
+  toastMsg = msg;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toastMsg = ''), 2000);
+}
+
+function persist(fn: () => void): void {
+  try {
+    fn();
+    setVersion(getVersion() + 1);
+  } catch (e) {
+    if (e instanceof StorageQuotaError) showToast('Помилка збереження: сховище переповнене');
+    else throw e;
   }
+}
 
-  let selectedDate = $state(todayStr());
-  let all = $state<AllProgress>(loadAllProgress());
-  let weights = $state<WeightEntry[]>(loadWeights());
-  let exWeights = $state<Record<string, number>>(loadExWeights());
-  let toastMsg = $state('');
-  let dialog = $state<{ key: string; initial: number | null } | null>(null);
-  let deferredPrompt = $state<BeforeInstallPromptEvent | null>(null);
-  let toastTimer: ReturnType<typeof setTimeout> | undefined;
-
-  const allKeys = getAllKeys();
-  const total = allKeys.length;
-
-  const progress = $derived(all[selectedDate] ?? {});
-  const doneCount = $derived(allKeys.filter((k) => progress[k]).length);
-  const sortedWeights = $derived([...weights].sort(byDateDesc));
-
-  function showToast(msg: string): void {
-    toastMsg = msg;
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => (toastMsg = ''), 2000);
-  }
-
-  function persist(fn: () => void): void {
-    try {
-      fn();
-    } catch (e) {
-      if (e instanceof StorageQuotaError) showToast('Помилка збереження: сховище переповнене');
-      else throw e;
-    }
-  }
+function reloadFromStorage(): void {
+  all = loadAllProgress();
+  weights = loadWeights();
+  exWeights = loadExWeights();
+}
 
   function toggleExercise(key: string): void {
     const cur = all[selectedDate] ?? {};
@@ -116,11 +137,16 @@
 
   function addWeight(weight: number, date: string): void {
     persist(() => {
-      const existing = weights.find((w) => w.date === date);
-      if (existing) {
-        weights = weights.map((w) => (w.date === date ? { ...w, weight } : w)).sort(byDateDesc);
+      const existingIdx = weights.findIndex((w) => w.date === date);
+      const existingEntry = existingIdx >= 0 ? weights[existingIdx] : undefined;
+      const entry: WeightEntry = { id: existingEntry?.id ?? Date.now(), date, weight };
+      if (existingIdx >= 0) {
+        weights = [...weights.slice(0, existingIdx), entry, ...weights.slice(existingIdx + 1)];
       } else {
-        weights = [...weights, { id: Date.now(), date, weight }].sort(byDateDesc);
+        const insertIdx = weights.findIndex((w) => w.date < date);
+        weights = insertIdx >= 0
+          ? [...weights.slice(0, insertIdx), entry, ...weights.slice(insertIdx)]
+          : [...weights, entry];
       }
       saveWeights(weights);
     });
@@ -128,7 +154,15 @@
 
   function updateWeight(id: number, weight: number, date: string): void {
     persist(() => {
-      weights = weights.map((w) => (w.id === id ? { ...w, weight, date } : w)).sort(byDateDesc);
+      const existingIdx = weights.findIndex((w) => w.id === id);
+      if (existingIdx < 0) return;
+      const entry: WeightEntry = { id, date, weight };
+      // Remove old, insert at correct position
+      const without = [...weights.slice(0, existingIdx), ...weights.slice(existingIdx + 1)];
+      const insertIdx = without.findIndex((w) => w.date < date);
+      weights = insertIdx >= 0
+        ? [...without.slice(0, insertIdx), entry, ...without.slice(insertIdx)]
+        : [...without, entry];
       saveWeights(weights);
     });
   }
@@ -158,11 +192,19 @@
       deferredPrompt = null;
       showToast('Дякуємо за встановлення!');
     };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY || e.key === WEIGHT_KEY || e.key === EX_WEIGHT_KEY) {
+        // Note: storage event fires after the write, so version should be updated
+        reloadFromStorage();
+      }
+    };
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
+    window.addEventListener('storage', onStorage);
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener('storage', onStorage);
     };
   });
 </script>
