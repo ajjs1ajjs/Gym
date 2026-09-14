@@ -29,17 +29,6 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-const STORAGE_VERSION_KEY = 'gym-tracker-version';
-
-function getVersion(): number {
-  const v = localStorage.getItem(STORAGE_VERSION_KEY);
-  return v ? parseInt(v, 10) : 0;
-}
-
-function setVersion(v: number): void {
-  localStorage.setItem(STORAGE_VERSION_KEY, String(v));
-}
-
 let selectedDate = $state(todayStr());
 let all = $state<AllProgress>(loadAllProgress());
 let weights = $state<WeightEntry[]>(loadWeights());
@@ -65,7 +54,6 @@ function showToast(msg: string): void {
 function persist(fn: () => void): void {
   try {
     fn();
-    setVersion(getVersion() + 1);
   } catch (e) {
     if (e instanceof StorageQuotaError) showToast('Помилка збереження: сховище переповнене');
     else throw e;
@@ -198,10 +186,15 @@ function reloadFromStorage(): void {
         reloadFromStorage();
       }
     };
+    const onAppError = (e: Event) => {
+      showToast((e as CustomEvent<string>).detail || 'Сталася помилка');
+    };
+    window.addEventListener('app-error', onAppError);
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
     window.addEventListener('storage', onStorage);
     return () => {
+      window.removeEventListener('app-error', onAppError);
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onInstalled);
       window.removeEventListener('storage', onStorage);

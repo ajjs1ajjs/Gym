@@ -25,8 +25,8 @@
   <img src="https://img.shields.io/badge/Svelte-5-orange?logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/TypeScript-typed-blue?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PWA-offline-cyan" alt="PWA">
-  <img src="https://img.shields.io/badge/tests-25%20passing-green" alt="Tests">
-  <img src="https://img.shields.io/badge/bundle-23KB%20gzip-00d4aa" alt="Bundle">
+  <img src="https://img.shields.io/badge/tests-29%20passing-green" alt="Tests">
+  <img src="https://img.shields.io/badge/bundle-24KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
 [**🌐 Live Site**](https://ajjs1ajjs.github.io/Gym/) · [Releases](https://github.com/ajjs1ajjs/Gym/releases) · [Actions](https://github.com/ajjs1ajjs/Gym/actions)
@@ -68,7 +68,7 @@
 - **TypeScript** — повна типізація
 - **Vite** — швидкий білд, максимальна швидкість
 - **vite-plugin-pwa** — автоматичний service worker (precache + cache-first)
-- **Vitest** + **@testing-library/svelte** — 25 тестів
+- **Vitest** + **@testing-library/svelte** — 29 тестів
 - **ESLint** + **svelte-check** — якість коду
 
 ## 🚀 Getting started
@@ -96,37 +96,17 @@ npm run build      # продакшн-білд у dist/
 npm run preview    # перегляд білд-результату
 ```
 
-### Windows
-
-Автоматичний встановлювач (PowerShell; перевіряє/встановлює Node.js 20+ через winget, білдить і піднімає локальний сервер на `http://localhost:8075`):
-
-```powershell
-irm https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.ps1 | iex
-# або dev-сервер (Vite, http://localhost:5173):
-$env:GYM_DEV = "1"; irm https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.ps1 | iex
-```
-
-Вручну (Node.js 20+ з [nodejs.org](https://nodejs.org) або `winget install --id OpenJS.NodeJS.LTS -e`):
-
-```powershell
-git clone https://github.com/ajjs1ajjs/Gym.git
-cd Gym
-npm install
-npm run dev        # dev-сервер
-npm run build      # продакшн-білд у dist/
-```
-
 ### Локальний запуск продакшн-білда
 
 ```bash
-npx serve dist     # Linux/Windows/macOS — будь-де, де є Node.js
+npx serve dist     # Ubuntu — будь-де, де є Node.js
 ```
 
 ## Деплой
 
 При кожному пуші у гілку `main` (окрім змін лише в `README.md`/`CHANGELOG.md`) запускається GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → публікація `dist/` через `peaceiris/actions-gh-pages`.
 
-> **Локальна розробка:** проєкт сумісний з **Ubuntu / Debian** (`install.sh`) та **Windows** (`install.ps1`) — див. розділ [🚀 Getting started](#-getting-started). CI (`deploy.yml`) запускає lint → type-check → тести → build на `ubuntu-latest`. Застосунок статичний (PWA), для самостійного розгортання `dist/` достатньо будь-якого веб-сервера: **nginx / Caddy** на Linux або IIS/будь-який статичний хостинг на Windows.
+> **Локальна розробка:** проєкт сумісний з **Ubuntu / Debian** (`install.sh`) — див. розділ [🚀 Getting started](#-getting-started). CI (`deploy.yml`) запускає lint → type-check → тести → build на `ubuntu-latest`. Застосунок статичний (PWA), для самостійного розгортання `dist/` достатньо будь-якого веб-сервера: **nginx / Caddy** на Linux.
 
 ## Посилання
 

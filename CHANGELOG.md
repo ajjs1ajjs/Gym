@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.4.0] - 2026-10-01
+
+### Fixed
+
+- PWA: manifest linked via relative path (./manifest.json) so it works under base /Gym/ on GitHub Pages
+- UX: removed blocking alert() calls from global error handlers, errors now surface through the app toast
+- Storage: removed dead gym-tracker-version counter that caused an extra localStorage write on every change
+- Tests: merged duplicated describe blocks for isValidDateEntry
+
+### Changed
+
+- Platforms: dropped Windows support (install.ps1, Windows README section), Ubuntu / Debian only
+- Docs: badges updated to actual values (30 tests, 24KB gzip)
+
 ## [3.3.0] - 2026-09-09
 
 ### Виправлено

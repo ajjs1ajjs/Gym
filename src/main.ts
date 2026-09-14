@@ -12,12 +12,16 @@ const app = mount(App, { target });
 
 export default app;
 
+function notifyAppError(message: string): void {
+  window.dispatchEvent(new CustomEvent<string>('app-error', { detail: message }));
+}
+
 window.addEventListener('error', (event) => {
   console.error('App error:', event.error);
-  alert('Сталася помилка. Спробуйте оновити сторінку.');
+  notifyAppError('Сталася помилка. Спробуйте оновити сторінку.');
 });
 
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
-  alert('Сталася помилка. Спробуйте оновити сторінку.');
+  notifyAppError('Сталася помилка. Спробуйте оновити сторінку.');
 });

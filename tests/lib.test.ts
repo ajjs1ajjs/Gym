@@ -68,17 +68,6 @@ describe('toWeight', () => {
   });
 });
 
-describe('isValidDateEntry', () => {
-  it('validates progress objects', () => {
-    expect(isValidDateEntry({ 'leg-press': true })).toBe(true);
-    expect(isValidDateEntry({})).toBe(false);
-    expect(isValidDateEntry(null)).toBe(false);
-    expect(isValidDateEntry(undefined)).toBe(false);
-    expect(isValidDateEntry('x')).toBe(false);
-    expect(isValidDateEntry(42)).toBe(false);
-  });
-});
-
 describe('computeWeightDiffs', () => {
   const entries = (
     data: Array<{ id: number; date: string; weight: number }>,

@@ -43,4 +43,4 @@
 ## Сумісність з GitHub Pages
 
 - `base: '/Gym/'` — асети завантажуються з піддиректорії `/Gym/`.
-- Деплой: `peaceiris/actions-gh-pages` публікує `dist/` у гілку `gh-pages` (як у проєкті Sales).
+- Деплой: `peaceiris/actions-gh-pages` публікує `dist/` у гілку `gh-pages`.
