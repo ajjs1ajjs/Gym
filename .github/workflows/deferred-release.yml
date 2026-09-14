@@ -1,0 +1,39 @@
+name: Deferred release (Oct 1)
+
+on:
+  schedule:
+    - cron: '0 6 1 10 *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deferred-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Merge holding branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin codex/deferred-oct-release
+          git merge --no-ff origin/codex/deferred-oct-release -m "release: v3.4.0 deferred release (Oct 1)"
+          git push origin main
+
+      - name: Create tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git tag v3.4.0 || echo "tag exists"
+          git push origin v3.4.0 || echo "tag already pushed"
+          gh release create v3.4.0 --title "v3.4.0" --notes "Deferred release v3.4.0: PWA manifest via relative path, no more blocking alert popups (errors go to app toast), dead storage version counter removed, Ubuntu/Debian only, docs updated (29 tests, 24KB gzip)." || echo "release exists"
