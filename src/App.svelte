@@ -19,8 +19,9 @@ import {
   WEIGHT_KEY,
   EX_WEIGHT_KEY,
 } from './lib/storage';
-import { todayStr, shiftDate, formatDate } from './lib/dates';
-import { byDateDesc } from './lib/compute';
+import { todayStr, shiftDate, formatDate, isUsableDateStr } from './lib/dates';
+import { byDateDesc, newWeightId } from './lib/compute';
+import { MIN_WEIGHT, MAX_WEIGHT } from './lib/format';
 import type { AllProgress } from './lib/storage';
 import type { WeightEntry } from './lib/compute';
 
@@ -39,7 +40,16 @@ let deferredPrompt = $state<BeforeInstallPromptEvent | null>(null);
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 const allKeys = getAllKeys();
+const knownKeys = new Set(allKeys);
 const total = allKeys.length;
+
+function isKnownKey(key: string): boolean {
+  return knownKeys.has(key);
+}
+
+function isValidEntryWeight(weight: number): boolean {
+  return Number.isFinite(weight) && weight >= MIN_WEIGHT && weight <= MAX_WEIGHT;
+}
 
 const progress = $derived(all[selectedDate] ?? {});
 const doneCount = $derived(allKeys.filter((k) => progress[k]).length);
@@ -67,6 +77,7 @@ function reloadFromStorage(): void {
 }
 
   function toggleExercise(key: string): void {
+    if (!isKnownKey(key)) return;
     const cur = all[selectedDate] ?? {};
     const next = { ...cur };
     if (next[key]) delete next[key];
@@ -83,10 +94,10 @@ function reloadFromStorage(): void {
   }
 
   function setExWeight(key: string, value: number): void {
+    if (!isKnownKey(key) || !isValidEntryWeight(value)) return;
     persist(() => {
       const next = { ...exWeights };
-      if (value < 0) delete next[key];
-      else next[key] = value;
+      next[key] = value;
       exWeights = next;
       saveExWeights(next);
     });
@@ -99,6 +110,14 @@ function reloadFromStorage(): void {
   function closeWeightPrompt(value: number | null): void {
     if (dialog && value !== null) setExWeight(dialog.key, value);
     dialog = null;
+  }
+
+  function pickDate(d: string): void {
+    if (!isUsableDateStr(d)) {
+      showToast('Некоректна дата');
+      return;
+    }
+    selectedDate = d;
   }
 
   function navigateDate(delta: number): void {
@@ -124,10 +143,14 @@ function reloadFromStorage(): void {
   }
 
   function addWeight(weight: number, date: string): void {
+    if (!isValidEntryWeight(weight) || !isUsableDateStr(date)) {
+      showToast('Некоректні дані вимірювання');
+      return;
+    }
     persist(() => {
       const existingIdx = weights.findIndex((w) => w.date === date);
       const existingEntry = existingIdx >= 0 ? weights[existingIdx] : undefined;
-      const entry: WeightEntry = { id: existingEntry?.id ?? Date.now(), date, weight };
+      const entry: WeightEntry = { id: existingEntry?.id ?? newWeightId(), date, weight };
       if (existingIdx >= 0) {
         weights = [...weights.slice(0, existingIdx), entry, ...weights.slice(existingIdx + 1)];
       } else {
@@ -140,7 +163,11 @@ function reloadFromStorage(): void {
     });
   }
 
-  function updateWeight(id: number, weight: number, date: string): void {
+  function updateWeight(id: string, weight: number, date: string): void {
+    if (!isValidEntryWeight(weight) || !isUsableDateStr(date)) {
+      showToast('Некоректні дані вимірювання');
+      return;
+    }
     persist(() => {
       const existingIdx = weights.findIndex((w) => w.id === id);
       if (existingIdx < 0) return;
@@ -155,7 +182,7 @@ function reloadFromStorage(): void {
     });
   }
 
-  function deleteWeight(id: number): void {
+  function deleteWeight(id: string): void {
     if (!confirm('Видалити запис?')) return;
     persist(() => {
       weights = weights.filter((w) => w.id !== id);
@@ -204,12 +231,13 @@ function reloadFromStorage(): void {
 
 <ProgressHeader done={doneCount} {total} />
 
-<DateNav {selectedDate} onnavigate={navigateDate} onpick={(d) => (selectedDate = d)} ontoday={() => (selectedDate = todayStr())} />
+<DateNav {selectedDate} onnavigate={navigateDate} onpick={pickDate} ontoday={() => (selectedDate = todayStr())} />
 
 <main id="blocks">
-  {#each WORKOUT as block (block.title)}
+  {#each WORKOUT as block, i (block.title)}
     <WorkoutBlock
       block={block}
+      index={i}
       progress={progress}
       exWeights={exWeights}
       ontoggle={toggleExercise}
@@ -226,7 +254,7 @@ function reloadFromStorage(): void {
   ondelete={deleteWeight}
 />
 
-<HistorySection all={all} selectedDate={selectedDate} onselect={(d) => (selectedDate = d)} />
+<HistorySection all={all} selectedDate={selectedDate} onselect={pickDate} />
 
 <div class="actions">
   {#if deferredPrompt}

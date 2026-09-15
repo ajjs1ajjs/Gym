@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { todayStr, formatDate } from '../lib/dates';
+  import { todayStr, formatDate, isUsableDateStr } from '../lib/dates';
   import { computeWeightDiffs } from '../lib/compute';
   import { toWeight } from '../lib/format';
   import type { WeightEntry } from '../lib/compute';
@@ -12,31 +12,31 @@
   } = $props<{
     weights: WeightEntry[];
     onadd: (weight: number, date: string) => void;
-    onupdate: (id: number, weight: number, date: string) => void;
-    ondelete: (id: number) => void;
+    onupdate: (id: string, weight: number, date: string) => void;
+    ondelete: (id: string) => void;
   }>();
 
   let open = $state(true);
   let wInput = $state('');
   let wDate = $state(todayStr());
-  let editId = $state<number | null>(null);
+  let editId = $state<string | null>(null);
   let error = $state('');
 
   const current = $derived(weights.length > 0 ? weights[0]?.weight : null);
   const prev = $derived(weights.length > 1 ? weights[1]?.weight : null);
   const diff = $derived(current !== null && prev !== null ? Math.round((current - prev) * 10) / 10 : null);
-  const min = $derived(weights.length > 0 ? Math.min(...weights.map((w: WeightEntry) => w.weight)) : null);
-  const max = $derived(weights.length > 0 ? Math.max(...weights.map((w: WeightEntry) => w.weight)) : null);
+  const min = $derived(weights.length > 0 ? weights.reduce((m: number, w: WeightEntry) => Math.min(m, w.weight), Number.POSITIVE_INFINITY) : null);
+  const max = $derived(weights.length > 0 ? weights.reduce((m: number, w: WeightEntry) => Math.max(m, w.weight), Number.NEGATIVE_INFINITY) : null);
   const diffs = $derived(computeWeightDiffs(weights));
 
   function submit(): void {
     const weight = toWeight(wInput);
     if (weight === null) {
-      error = 'Введіть коректну вагу';
+      error = 'Введіть коректну вагу (0.5–999)';
       return;
     }
-    if (!wDate) {
-      error = 'Виберіть дату';
+    if (!isUsableDateStr(wDate)) {
+      error = 'Виберіть коректну дату (не в майбутньому)';
       return;
     }
     error = '';
@@ -50,7 +50,7 @@
     wDate = todayStr();
   }
 
-  function startEdit(id: number): void {
+  function startEdit(id: string): void {
     const w = weights.find((x: WeightEntry) => x.id === id);
     if (!w) return;
     wInput = String(w.weight);
@@ -111,13 +111,13 @@
         id="w-input"
         placeholder="Вага (кг)"
         step="0.1"
-        min="20"
-        max="300"
+        min="0.5"
+        max="999"
         inputmode="decimal"
         bind:value={wInput}
         onkeydown={(e) => e.key === 'Enter' && submit()}
       />
-      <input type="date" id="w-date" bind:value={wDate} />
+      <input type="date" id="w-date" bind:value={wDate} max={todayStr()} />
       <button class="btn-add" id="w-add" onclick={submit}>{editId !== null ? '✎ Зберегти' : '+ Додати'}</button>
     </div>
 

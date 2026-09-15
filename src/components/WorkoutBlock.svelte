@@ -5,6 +5,7 @@
 
   let {
     block,
+    index,
     progress,
     exWeights,
     ontoggle,
@@ -12,12 +13,17 @@
     onweight,
   } = $props<{
     block: Block;
+    index: number;
     progress: Day;
     exWeights: Record<string, number>;
     ontoggle: (key: string) => void;
     onpromptweight: (key: string) => void;
     onweight: (key: string, value: number) => void;
   }>();
+
+  const ACCENTS: ReadonlySet<string> = new Set(['block-0', 'block-1', 'block-2', 'block-3']);
+  const accent = $derived(ACCENTS.has(block.accent) ? block.accent : 'block-0');
+  const bodyId = $derived(`block-body-${index}`);
 
   let open = $state(true);
   const blockDone = $derived(block.exercises.filter((e: Exercise) => progress[e.key]).length);
@@ -35,13 +41,13 @@
   }
 </script>
 
-<div class="block {block.accent}">
+<div class="block {accent}">
   <div
     class="block-header"
     role="button"
     tabindex="0"
     aria-expanded={open}
-    aria-controls="block-body-{block.title}"
+    aria-controls={bodyId}
     onclick={toggle}
     onkeydown={onKeydown}
   >
@@ -50,7 +56,7 @@
     <div class="block-progress">{blockDone}/{blockTotal}</div>
     <div class="arrow" class:open>▾</div>
   </div>
-  <div id="block-body-{block.title}" class="block-body" class:open>
+  <div id={bodyId} class="block-body" class:open>
     <div class="block-desc">{block.desc}</div>
     {#each block.exercises as ex (ex.key)}
       <ExerciseCard

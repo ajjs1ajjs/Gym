@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.5.0] - 2026-09-15
+
+### Security (audit round, all findings closed, re-audit 19/19 PASS)
+
+- **Storage**: validators hardened — date keys must match `YYYY-MM-DD`, exercise keys allowlisted, weights finite `0.5–999`, entries exactly `{id,date,weight}` shape-capped (`MAX_DAYS=3700`, `MAX_WEIGHT_ENTRIES=5000`); legacy migration validated (no blind casts), numeric ids normalized to strings.
+- **Input**: `toWeight` strict decimal shape + `0.5–999` domain; central `isRealCalendarDate`/`isUsableDateStr` guards on all date entries (picker, form, history, add/update); progress bars clamped via `progressPct`.
+- **IDs**: `crypto.randomUUID()` entry ids (ms-timestamp collisions fixed).
+- **Components**: image `src` allowlist + base-aware URLs + error fallback; accent allowlist; index-based block ids; min/max via seeded reduce (no spread-DoS); date `max` attrs aligned with domain.
+- **CSP**: `object-src 'none'`, `base-uri/form-action/worker/manifest-src 'self'`; emoji data-URI favicon replaced by `icon.svg` (dropped `img-src data:`); theme colors aligned; `apple-touch-icon` added; manifest `id` + SVG `purpose: any`.
+- **PWA**: `navigateFallback: /Gym/index.html` (base-aware); Vitest config split to `vitest.config.ts`.
+- **Supply chain**: exact dep pins + synced lock (`npm audit fix` cleared the high `fast-uri`; 2 moderate dev-only `vitest` remain upstream); `engines: 22.x` + `packageManager`; Dependabot (npm + actions); `npm audit` gate in CI.
+- **CI**: least-privilege permissions, SHA-pinned actions (incl. peaceiris `v4.1.0` @ `84c30a8`), `ubuntu-24.04`, timeouts, `npm run check`; deferred-release derives version from `package.json` + `--ff-only`.
+- **Site**: root `.nojekyll` removed (kept `public/`); `robots.txt` + `sitemap.xml` added.
+- **install.sh**: `serve@14.2.5 --single`, `http.server` fallback warns about SPA/SW limits, NodeSource downloaded-to-temp (sha pin placeholder documented), `22+` message, `--help`, unknown flags rejected. Known accepted risk: NodeSource sha256 not yet pinned to a verified value.
+
+### Tests
+
+- 39 passing (was ~29): validator rejection suites, id normalization, date guards, `progressPct`, `newWeightId` uniqueness. `eslint` clean, `svelte-check` clean, `vite build` ok.
+
 ## [3.4.0] - 2026-10-01
 
 ### Fixed

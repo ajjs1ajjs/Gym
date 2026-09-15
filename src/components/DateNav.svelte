@@ -14,7 +14,6 @@
   }>();
 
   let picker: HTMLInputElement | undefined = $state();
-  const today = todayStr();
 
   function showPicker(): void {
     picker?.showPicker();
@@ -38,11 +37,11 @@
     type="date"
     class="dn-picker"
     bind:this={picker}
-    max={today}
+    max={todayStr()}
     value={selectedDate}
     onchange={(e) => onpick((e.currentTarget as HTMLInputElement).value)}
   />
-  {#if selectedDate !== today}
+  {#if selectedDate !== todayStr()}
     <button class="dn-btn dn-today" onclick={ontoday}>📅 Сьогодні</button>
   {/if}
 </div>

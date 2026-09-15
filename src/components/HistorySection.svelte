@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { formatDate, isValidDateEntry } from '../lib/dates';
+  import { DATE_RE, formatDate, isValidDateEntry } from '../lib/dates';
+  import { progressPct } from '../lib/compute';
   import { getAllKeys } from '../lib/workout';
   import type { AllProgress } from '../lib/storage';
 
@@ -18,7 +19,7 @@
   const total = allKeys.length;
   const dates = $derived(
     Object.keys(all)
-      .filter((d) => isValidDateEntry(all[d]))
+      .filter((d) => DATE_RE.test(d) && isValidDateEntry(all[d]))
       .sort()
       .reverse(),
   );
@@ -48,7 +49,7 @@
       {#each dates as d (d)}
         {@const progress = all[d] ?? {}}
         {@const done = allKeys.filter((k) => progress[k]).length}
-        {@const pct = total > 0 ? Math.round((done / total) * 100) : 0}
+        {@const pct = progressPct(done, total)}
         {@const isSel = d === selectedDate}
         <div
           class="history-entry"

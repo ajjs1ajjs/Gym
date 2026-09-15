@@ -17,15 +17,23 @@ REPO_URL="https://github.com/ajjs1ajjs/Gym.git"
 REPO_DIR_NAME="Gym"
 
 DEV=0
-for arg in "$@"; do
-    case "$arg" in
-        --dev) DEV=1 ;;
-    esac
-done
 
 log()  { printf '\033[1;36m[Gym]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[Gym]\033[0m %s\n' "$*"; }
 fail() { printf '\033[1;31m[Gym]\033[0m %s\n' "$*" >&2; exit 1; }
+
+for arg in "$@"; do
+    case "$arg" in
+        --dev) DEV=1 ;;
+        -h|--help)
+            echo "Usage: bash install.sh [--dev]"
+            echo "  (no args)  build + serve dist/ on http://localhost:8075"
+            echo "  --dev      Vite dev server on http://localhost:5173"
+            exit 0
+            ;;
+        *) fail "Unknown argument: $arg (try --help)" ;;
+    esac
+done
 
 check_ubuntu_version() {
     if [ ! -f /etc/os-release ]; then
@@ -59,10 +67,23 @@ ensure_node() {
     log "npm not found - installing Node.js 22..."
     if command -v apt-get >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
         if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
-        curl -fsSL https://deb.nodesource.com/setup_22.x | $SUDO bash -
+        # Never pipe curl straight into bash: save first so the script can be
+        # inspected, then verify its sha256 against the pinned value below.
+        # To rotate: download manually, review, and update PINNED_SHA.
+        PINNED_SHA="REPLACE_WITH_VERIFIED_SHA256"
+        TMP_SETUP="$(mktemp)"
+        curl -fsSL https://deb.nodesource.com/setup_22.x -o "$TMP_SETUP"
+        ACTUAL_SHA="$(sha256sum "$TMP_SETUP" | awk '{print $1}')"
+        if [ "$PINNED_SHA" = "REPLACE_WITH_VERIFIED_SHA256" ]; then
+            warn "NodeSource setup sha256 not pinned yet (got $ACTUAL_SHA) - proceeding without verification; review $TMP_SETUP in untrusted environments."
+        else
+            [ "$ACTUAL_SHA" = "$PINNED_SHA" ] || fail "NodeSource setup script checksum mismatch (got $ACTUAL_SHA)"
+        fi
+        $SUDO bash "$TMP_SETUP"
+        rm -f "$TMP_SETUP"
         $SUDO apt-get install -y nodejs || fail "Node.js installation failed. Install it manually: https://nodejs.org"
     else
-        fail "Need apt-get + curl to auto-install Node.js, or install Node.js 20+ manually and re-run."
+        fail "Need apt-get + curl to auto-install Node.js, or install Node.js 22+ manually and re-run."
     fi
     command -v npm >/dev/null 2>&1 || fail "Node.js installed but 'npm' is not on PATH yet. Open a new shell and re-run."
 }
@@ -121,8 +142,9 @@ log "   Serving at:   http://localhost:8075"
 log "==============================================="
 
 if command -v npx >/dev/null 2>&1; then
-    exec npx --yes serve dist -l 8075
+    exec npx --yes serve@14.2.5 dist -l 8075 --single
 elif command -v python3 >/dev/null 2>&1; then
+    warn "Falling back to 'python3 -m http.server': SPA deep links and the service worker may 404 - prefer 'npx --yes serve@14.2.5 dist -l 8075 --single'."
     cd dist
     exec python3 -m http.server 8075
 else

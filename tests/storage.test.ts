@@ -12,6 +12,7 @@ import { todayStr } from '../src/lib/dates';
 const V2 = 'gym-tracker-progress-v2';
 const LEGACY = 'gym-tracker-progress';
 const WEIGHTS = 'gym-tracker-weights';
+const EX_WEIGHTS = 'gym-tracker-ex-weights';
 
 beforeEach(() => {
   localStorage.clear();
@@ -59,15 +60,35 @@ describe('saveAllProgress', () => {
 
 describe('weights storage', () => {
   it('round-trips weight entries', () => {
-    const entries = [{ id: 1, date: '2024-01-01', weight: 80.5 }];
+    const entries = [{ id: 'abc-123', date: '2024-01-01', weight: 80.5 }];
     saveWeights(entries);
     expect(loadWeights()).toEqual(entries);
+  });
+
+  it('normalizes legacy numeric ids to strings', () => {
+    localStorage.setItem(WEIGHTS, JSON.stringify([{ id: 1, date: '2024-01-01', weight: 80.5 }]));
+    expect(loadWeights()).toEqual([{ id: '1', date: '2024-01-01', weight: 80.5 }]);
   });
 
   it('returns [] for missing/corrupt data', () => {
     expect(loadWeights()).toEqual([]);
     localStorage.setItem(WEIGHTS, 'nope');
     expect(loadWeights()).toEqual([]);
+  });
+
+  it('rejects out-of-shape entries (bad date, weight, id, extra keys)', () => {
+    const bad = [
+      [{ id: 'a', date: '2024-13-99', weight: 80 }],
+      [{ id: 'a', date: '2024-02-30', weight: 80 }],
+      [{ id: 'a', date: '2024-01-01', weight: 0.1 }],
+      [{ id: 'a', date: '2024-01-01', weight: 1000 }],
+      [{ id: 'a', date: '2024-01-01', weight: 80, extra: 1 }],
+      [{ id: 1.5, date: '2024-01-01', weight: 80 }],
+    ];
+    for (const entries of bad) {
+      localStorage.setItem(WEIGHTS, JSON.stringify(entries));
+      expect(loadWeights()).toEqual([]);
+    }
   });
 });
 
@@ -79,5 +100,24 @@ describe('exercise weight storage', () => {
 
   it('returns {} for missing data', () => {
     expect(loadExWeights()).toEqual({});
+  });
+
+  it('rejects unknown keys and out-of-range values', () => {
+    localStorage.setItem(EX_WEIGHTS, JSON.stringify({ 'leg-press': 120, hacker: 5 }));
+    expect(loadExWeights()).toEqual({});
+    localStorage.setItem(EX_WEIGHTS, JSON.stringify({ 'leg-press': -5 }));
+    expect(loadExWeights()).toEqual({});
+    localStorage.setItem(EX_WEIGHTS, JSON.stringify({ 'leg-press': 5000 }));
+    expect(loadExWeights()).toEqual({});
+  });
+
+  it('rejects non-date keys in progress', () => {
+    localStorage.setItem(V2, JSON.stringify({ 'not-a-date': { 'leg-press': true } }));
+    expect(loadAllProgress()).toEqual({});
+  });
+
+  it('rejects unknown exercise keys in progress', () => {
+    localStorage.setItem(V2, JSON.stringify({ [todayStr()]: { 'leg-press': true, evil: true } }));
+    expect(loadAllProgress()).toEqual({});
   });
 });

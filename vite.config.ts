@@ -11,7 +11,8 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
-        navigateFallback: 'index.html',
+        // Absolute subpath: the app is served from /Gym/ on GitHub Pages.
+        navigateFallback: '/Gym/index.html',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
@@ -30,9 +31,5 @@ export default defineConfig({
   resolve: {
     conditions: ['browser'],
   },
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: './tests/setup.ts',
-  },
+  // Vitest config lives in vitest.config.ts (kept out of the app bundle config).
 });
