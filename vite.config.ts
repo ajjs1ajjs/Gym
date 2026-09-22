@@ -11,8 +11,9 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,json}'],
-        // Absolute subpath: the app is served from /Gym/ on GitHub Pages.
-        navigateFallback: '/Gym/index.html',
+        // Absolute subpath: the app is served from /dist/gym/ on GitHub Pages
+        // (public dist repo hosts the built PWA; the source repo is private).
+        navigateFallback: '/dist/gym/index.html',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
@@ -27,7 +28,7 @@ export default defineConfig({
       },
     }),
   ],
-  base: '/Gym/',
+  base: '/dist/gym/',
   resolve: {
     conditions: ['browser'],
   },

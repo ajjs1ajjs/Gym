@@ -2,14 +2,9 @@
 
 # Gym Tracker — Source Code
 
-[![Deployed to](https://img.shields.io/badge/Deployed_to-Gym-blue)](https://github.com/ajjs1ajjs/Gym)
-[![Website](https://img.shields.io/badge/Website-ajjs1ajjs.github.io%2FGym-green)](https://ajjs1ajjs.github.io/Gym/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/ajjs1ajjs/Gym/deploy.yml?label=CI)](https://github.com/ajjs1ajjs/Gym/actions/workflows/deploy.yml)
-
-> **Це репозиторій з вихідним кодом Gym workout tracker PWA.**
-> Готовий продукт деплоїться в: **https://github.com/ajjs1ajjs/Gym**
-> Офіційний сайт: **https://ajjs1ajjs.github.io/Gym/**
+> **Це приватний репозиторій з вихідним кодом Gym workout tracker PWA.**
+> Готовий застосунок хоститься з публічного репозиторію артефактів:
+> **https://ajjs1ajjs.github.io/dist/gym/**
 
 # Gym Tracker
 
@@ -29,7 +24,7 @@
   <img src="https://img.shields.io/badge/bundle-24KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
-[**🌐 Live Site**](https://ajjs1ajjs.github.io/Gym/) · [Releases](https://github.com/ajjs1ajjs/Gym/releases) · [Actions](https://github.com/ajjs1ajjs/Gym/actions)
+[**🌐 Live Site**](https://ajjs1ajjs.github.io/dist/gym/)
 
 </div>
 ---
@@ -73,22 +68,14 @@
 
 ## 🚀 Getting started
 
-### Ubuntu / Debian (WSL теж підходить)
+Користувачам достатньо відкрити **[живий застосунок](https://ajjs1ajjs.github.io/dist/gym/)** —
+він працює офлайн і встановлюється на телефон як PWA.
 
-Автоматичний встановлювач (сам ставить Node.js 22, залежності, білдить і піднімає локальний сервер на `http://localhost:8075`):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.sh | bash
-# або dev-сервер (Vite, http://localhost:5173):
-curl -fsSL https://raw.githubusercontent.com/ajjs1ajjs/Gym/main/install.sh | bash -s -- --dev
-```
-
-Вручну:
+Для локальної розробки (Node.js 22):
 
 ```bash
-sudo apt update && sudo apt install -y nodejs npm   # або через nvm
-npm install        # встановлення залежностей
-npm run dev        # dev-сервер
+npm ci             # встановлення залежностей із lockfile
+npm run dev        # dev-сервер (Vite, http://localhost:5173)
 npm test           # тести
 npm run check      # type-check (svelte-check)
 npm run lint       # eslint
@@ -96,21 +83,16 @@ npm run build      # продакшн-білд у dist/
 npm run preview    # перегляд білд-результату
 ```
 
-### Локальний запуск продакшн-білда
-
-```bash
-npx serve dist     # Ubuntu — будь-де, де є Node.js
-```
-
 ## Деплой
 
-При кожному пуші у гілку `main` (окрім змін лише в `README.md`/`CHANGELOG.md`) запускається GitHub Actions (`.github/workflows/deploy.yml`): lint → type-check → тести → build → публікація `dist/` через `peaceiris/actions-gh-pages`.
-
-> **Локальна розробка:** проєкт сумісний з **Ubuntu / Debian** (`install.sh`) — див. розділ [🚀 Getting started](#-getting-started). CI (`deploy.yml`) запускає lint → type-check → тести → build на `ubuntu-latest`. Застосунок статичний (PWA), для самостійного розгортання `dist/` достатньо будь-якого веб-сервера: **nginx / Caddy** на Linux.
+Кодовий репозиторій приватний; публічний артефакт — зібрана PWA в
+[`ajjs1ajjs/dist`](https://github.com/ajjs1ajjs/dist) (тека `gym/`), яку віддає GitHub Pages:
+**https://ajjs1ajjs.github.io/dist/gym/**. CI немає — тести й збірка виконуються локально
+(`npm test`, `npm run build`), зібране публікується вручну.
 
 ## Посилання
 
-Жива версія: [https://ajjs1ajjs.github.io/Gym/](https://ajjs1ajjs.github.io/Gym/)
+Жива версія: [https://ajjs1ajjs.github.io/dist/gym/](https://ajjs1ajjs.github.io/dist/gym/)
 
 ## Історія версій
 
