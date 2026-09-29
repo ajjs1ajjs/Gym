@@ -20,8 +20,8 @@
   <img src="https://img.shields.io/badge/Svelte-5-orange?logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/TypeScript-typed-blue?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PWA-offline-cyan" alt="PWA">
-  <img src="https://img.shields.io/badge/tests-29%20passing-green" alt="Tests">
-  <img src="https://img.shields.io/badge/bundle-24KB%20gzip-00d4aa" alt="Bundle">
+  <img src="https://img.shields.io/badge/tests-39%20passing-green" alt="Tests">
+  <img src="https://img.shields.io/badge/bundle-25KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
 [**🌐 Live Site**](https://ajjs1ajjs.github.io/dist/gym/)
@@ -63,7 +63,7 @@
 - **TypeScript** — повна типізація
 - **Vite** — швидкий білд, максимальна швидкість
 - **vite-plugin-pwa** — автоматичний service worker (precache + cache-first)
-- **Vitest** + **@testing-library/svelte** — 29 тестів
+- **Vitest** + **@testing-library/svelte** — 39 тестів
 - **ESLint** + **svelte-check** — якість коду
 
 ## 🚀 Getting started
@@ -87,8 +87,12 @@ npm run preview    # перегляд білд-результату
 
 Кодовий репозиторій приватний; публічний артефакт — зібрана PWA в
 [`ajjs1ajjs/dist`](https://github.com/ajjs1ajjs/dist) (тека `gym/`), яку віддає GitHub Pages:
-**https://ajjs1ajjs.github.io/dist/gym/**. CI немає — тести й збірка виконуються локально
-(`npm test`, `npm run build`), зібране публікується вручну.
+**https://ajjs1ajjs.github.io/dist/gym/**.
+
+Реліз — **Actions → Release → Run workflow** (вибір `bump`); воркфлоу сам бере наступний
+тег `gym-v<semver>`, збирає PWA й публікує `gym-site.tar.gz`. Окрім ручного запуску
+воркфлоу **відкладений на 1 жовтня** (`schedule`, 06:00 UTC) — коли оновлюється місячний
+ліміт GitHub Actions. Звичайні коміти реліз не запускають. Локально: `npm test`, `npm run build`.
 
 ## Посилання
 

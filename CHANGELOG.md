@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased] - 2026-10-01
+
+### Added
+
+- **CI/CD**: CI-воркфлоу (`lint → type-check → tests → build`) повернуто в репозиторій.
+- **Deferred release**: `Release` воркфлоу публікує PWA в `ajjs1ajjs/dist` за розкладом
+  **1 жовтня** (`cron: 0 6 1 10 *`, після скидання місячного ліміту GitHub Actions) та
+  вручну через `workflow_dispatch`. Версія тепер береться як `max(package.json, latest dist)`
+  + bump — монотонна навіть якщо `dist` відстає.
+
+### Fixed
+
+- **Deploy base**: усі згадки застарілого шляху `/Gym/` оновлено на актуальний `/dist/gym/`
+  (`sitemap.xml`, `robots.txt`, `MIGRATION_PLAN.md`).
+- **Docs**: бейдж і текст кількості тестів виправлено на 39; розмір бандла — 25 KB gzip.
+- **Release**: прибрано тригер `push` (реліз більше не запускається на кожен коміт).
+- **Repo**: `.freebuff/` додано до `.gitignore`.
+
 ## [3.5.0] - 2026-09-15
 
 ### Security (audit round, all findings closed, re-audit 19/19 PASS)

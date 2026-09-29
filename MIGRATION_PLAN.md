@@ -42,5 +42,6 @@
 
 ## Сумісність з GitHub Pages
 
-- `base: '/Gym/'` — асети завантажуються з піддиректорії `/Gym/`.
-- Деплой: `peaceiris/actions-gh-pages` публікує `dist/` у гілку `gh-pages`.
+- `base: '/dist/gym/'` — асети завантажуються з піддиректорії `/dist/gym/`.
+- Деплой: реліз (Actions → Release, або відкладений запуск 1 жовтня) збирає `dist/`
+  і публікує `gym-site.tar.gz` у публічний репозиторій `ajjs1ajjs/dist`.

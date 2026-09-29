@@ -1,0 +1,128 @@
+name: Release
+
+# Deferred release: builds the PWA and publishes the archive to the public
+# ajjs1ajjs/dist repo, tagging it there as `gym-v<semver>`, then commits the
+# version bump back to main.
+#
+# Trigger policy (deliberate):
+#   - schedule  : 1 October 06:00 UTC — the deferred release; GitHub Actions
+#                 minutes reset at the start of the month, so the heavy build runs
+#                 after the quota refresh.
+#   - manual    : Actions -> Release -> Run workflow (optional bump/version).
+# There is NO push trigger so ordinary commits never spend minutes or cut an
+# unplanned release.
+
+on:
+  schedule:
+    - cron: '0 6 1 10 *'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump'
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+      version:
+        description: 'Explicit x.y.z (overrides bump)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-gym
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build site and publish to dist
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Resolve next version
+        id: ver
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          DIST_REPO: ajjs1ajjs/dist
+          PREFIX: gym-v
+          INPUT_VERSION: ${{ inputs.version }}
+          BUMP: ${{ inputs.bump || 'patch' }}
+        run: |
+          set -euo pipefail
+          # package.json is the version floor; the dist repo only tells us whether
+          # an even newer tag was already published out-of-band. Taking the max of
+          # both keeps the version monotonic even if dist lags behind the source.
+          PKG=$(node -p "require('./package.json').version")
+          if [ -n "${INPUT_VERSION:-}" ]; then
+            NEXT="$INPUT_VERSION"
+          else
+            DIST=$(gh release list --repo "$DIST_REPO" --limit 200 --json tagName --jq '.[].tagName' \
+              | grep -E "^${PREFIX}[0-9]+\.[0-9]+\.[0-9]+$" | sed "s/^${PREFIX}//" | sort -V | tail -n1 || true)
+            [ -n "$DIST" ] || DIST="0.0.0"
+            BASE=$(printf '%s\n%s\n' "$PKG" "$DIST" | sort -V | tail -n1)
+            NEXT=$(echo "$BASE" | awk -F. -v b="${BUMP:-patch}" '{ if (b=="major") printf "%d.0.0",$1+1; else if (b=="minor") printf "%d.%d.0",$1,$2+1; else printf "%d.%d.%d",$1,$2,$3+1 }')
+          fi
+          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "tag=${PREFIX}${NEXT}" >> "$GITHUB_OUTPUT"
+          echo "Releasing ${PREFIX}${NEXT}"
+
+      - name: Bump version in source
+        env:
+          NEXT: ${{ steps.ver.outputs.version }}
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.env.NEXT;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
+          node -p "require('./package.json').version"
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package site archive + checksum
+        run: |
+          set -euo pipefail
+          tar -czf gym-site.tar.gz -C dist .
+          sha256sum gym-site.tar.gz > gym-site.tar.gz.sha256
+          ls -la gym-site.tar.gz*
+
+      - name: Publish release to ajjs1ajjs/dist
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          DIST_REPO: ajjs1ajjs/dist
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN" || { echo "::error::PUBLIC_RELEASE_TOKEN is not set"; exit 1; }
+          gh release create "$TAG" gym-site.tar.gz gym-site.tar.gz.sha256 --repo "$DIST_REPO" --title "Gym Tracker $TAG" --generate-notes
+
+      - name: Commit version bump
+        continue-on-error: true
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "chore(release): $TAG [skip ci]"
+          git push
