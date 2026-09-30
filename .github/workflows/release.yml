@@ -5,17 +5,16 @@ name: Release
 # version bump back to main.
 #
 # Trigger policy (deliberate):
-#   - schedule  : 1 October 08:00 UTC (11:00 Kyiv) — the deferred release;
-#                 GitHub Actions minutes reset at the start of the month, so the
-#                 heavy build runs after the quota refresh. Slot 08:00 UTC is
-#                 reserved for Gym so Oct 1 releases don't collide.
+#   - schedule  : 1 October 04:00 UTC (07:00 Kyiv, slot #7) — the deferred
+#                 release; GitHub Actions minutes reset at the start of the
+#                 month, so the heavy build runs after the quota refresh.
 #   - manual    : Actions -> Release -> Run workflow (optional bump/version).
 # There is NO push trigger so ordinary commits never spend minutes or cut an
 # unplanned release.
 
 on:
   schedule:
-    - cron: '0 8 1 10 *'
+    - cron: '0 4 1 10 *'
   workflow_dispatch:
     inputs:
       bump:
