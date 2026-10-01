@@ -1,20 +1,11 @@
 name: Release
 
-# Deferred release: builds the PWA and publishes the archive to the public
+# Manual release only (Actions -> Release -> Run workflow).
+# Builds the PWA and publishes the archive to the public
 # ajjs1ajjs/dist repo, tagging it there as `gym-v<semver>`, then commits the
 # version bump back to main.
-#
-# Trigger policy (deliberate):
-#   - schedule  : 1 October 04:00 UTC (07:00 Kyiv, slot #7) — the deferred
-#                 release; GitHub Actions minutes reset at the start of the
-#                 month, so the heavy build runs after the quota refresh.
-#   - manual    : Actions -> Release -> Run workflow (optional bump/version).
-# There is NO push trigger so ordinary commits never spend minutes or cut an
-# unplanned release.
 
 on:
-  schedule:
-    - cron: '0 4 1 10 *'
   workflow_dispatch:
     inputs:
       bump:
@@ -112,7 +103,15 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN" || { echo "::error::PUBLIC_RELEASE_TOKEN is not set"; exit 1; }
-          gh release create "$TAG" gym-site.tar.gz gym-site.tar.gz.sha256 --repo "$DIST_REPO" --title "Gym Tracker $TAG" --generate-notes
+          # dist is shared: --generate-notes would pick a foreign tag as base.
+          TAGS=$(gh release list --repo "$DIST_REPO" --limit 200 --json tagName --jq '.[].tagName' 2>/dev/null || true)
+          PREV=$(echo "$TAGS" | grep -E "^gym-v[0-9]+\.[0-9]+\.[0-9]+$" | grep -v "^${TAG}$" | sed "s/^gym-v//" | sort -V | tail -n 1 || true)
+          if [ -n "$PREV" ]; then
+            NOTES="**Full Changelog**: https://github.com/${DIST_REPO}/compare/gym-v${PREV}...${TAG}"
+          else
+            NOTES="Gym Tracker ${TAG}"
+          fi
+          gh release create "$TAG" gym-site.tar.gz gym-site.tar.gz.sha256 --repo "$DIST_REPO" --title "Gym Tracker $TAG" --notes "$NOTES"
 
       - name: Commit version bump
         continue-on-error: true
