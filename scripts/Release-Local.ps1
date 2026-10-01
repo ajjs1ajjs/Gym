@@ -89,7 +89,7 @@ $prev = $tags | Where-Object { $_ -match $pattern -and $_ -ne $tag } |
   Sort-Object { [version]$_ } | Select-Object -Last 1
 if ($prev) { $notes = "**Full Changelog**: https://github.com/$DistRepo/compare/$Prefix$prev...$tag" }
 else { $notes = "Gym Tracker $tag" }
-gh release create $tag gym-site.tar.gz gym-site.tar.gz.sha256 --repo $DistRepo --title "Gym Tracker $tag" --notes $notes
+gh release create $tag gym-site.tar.gz gym-site.tar.gz.sha256 --repo $DistRepo --title "Gym Tracker v$next" --notes $notes
 if ($LASTEXITCODE -ne 0) { Fail 'gh release failed' }
 
 # --- 7. Коміт бампа -------------------------------------------------------------------

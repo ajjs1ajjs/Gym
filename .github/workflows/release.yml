@@ -111,7 +111,7 @@ jobs:
           else
             NOTES="Gym Tracker ${TAG}"
           fi
-          gh release create "$TAG" gym-site.tar.gz gym-site.tar.gz.sha256 --repo "$DIST_REPO" --title "Gym Tracker $TAG" --notes "$NOTES"
+          gh release create "$TAG" gym-site.tar.gz gym-site.tar.gz.sha256 --repo "$DIST_REPO" --title "Gym Tracker v${TAG#gym-v}" --notes "$NOTES"
 
       - name: Commit version bump
         continue-on-error: true
