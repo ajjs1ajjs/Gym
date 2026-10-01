@@ -62,7 +62,9 @@ if ($LASTEXITCODE -ne 0) { Fail 'npm ci failed' }
 npm run lint
 if ($LASTEXITCODE -ne 0) { Fail 'lint failed' }
 
-# --- 3. Бамп package.json -------------------------------------------------------
+# --- 3. Бамп package.json (ідемпотентно: повторний прогін не помилка) -----------
+$pj = Get-Content package.json -Raw -Encoding utf8
+if ($pj -notmatch '"version"\s*:\s*"[^"]*"') { Fail 'version not found in package.json' }
 node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('package.json','utf8'));j.version='$next';fs.writeFileSync('package.json',JSON.stringify(j,null,2)+'\n');"
 node -p "require('./package.json').version"
 
