@@ -102,9 +102,9 @@ describe('exercise weight storage', () => {
     expect(loadExWeights()).toEqual({});
   });
 
-  it('rejects unknown keys and out-of-range values', () => {
+  it('drops unknown keys and out-of-range values, keeps the rest', () => {
     localStorage.setItem(EX_WEIGHTS, JSON.stringify({ 'leg-press': 120, hacker: 5 }));
-    expect(loadExWeights()).toEqual({});
+    expect(loadExWeights()).toEqual({ 'leg-press': 120 });
     localStorage.setItem(EX_WEIGHTS, JSON.stringify({ 'leg-press': -5 }));
     expect(loadExWeights()).toEqual({});
     localStorage.setItem(EX_WEIGHTS, JSON.stringify({ 'leg-press': 5000 }));
@@ -116,8 +116,39 @@ describe('exercise weight storage', () => {
     expect(loadAllProgress()).toEqual({});
   });
 
-  it('rejects unknown exercise keys in progress', () => {
+  it('drops unknown exercise keys in progress, keeps the rest', () => {
     localStorage.setItem(V2, JSON.stringify({ [todayStr()]: { 'leg-press': true, evil: true } }));
+    expect(loadAllProgress()).toEqual({ [todayStr()]: { 'leg-press': true } });
+  });
+
+  it('trims days beyond the limit instead of wiping everything', () => {
+    const data: Record<string, { 'leg-press': boolean }> = {};
+    let firstKey = '';
+    let lastKey = '';
+    for (let i = 0; i < 3705; i++) {
+      const d = new Date(2000, 0, 1 + i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (i === 0) firstKey = key;
+      lastKey = key;
+      data[key] = { 'leg-press': true };
+    }
+    localStorage.setItem(V2, JSON.stringify(data));
+    const loaded = loadAllProgress();
+    expect(Object.keys(loaded)).toHaveLength(3700);
+    // Newest days survive, oldest are trimmed.
+    expect(loaded[lastKey]).toEqual({ 'leg-press': true });
+    expect(loaded[firstKey]).toBeUndefined();
+  });
+
+  it('quarantines unparseable JSON instead of losing it silently', () => {
+    localStorage.setItem(V2, '{corrupt');
     expect(loadAllProgress()).toEqual({});
+    const backups: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) ?? '';
+      if (k.startsWith(V2 + '.corrupt.')) backups.push(k);
+    }
+    expect(backups).toHaveLength(1);
+    expect(localStorage.getItem(backups[0] as string)).toBe('{corrupt');
   });
 });

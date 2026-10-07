@@ -16,7 +16,14 @@
   let picker: HTMLInputElement | undefined = $state();
 
   function showPicker(): void {
-    picker?.showPicker();
+    // PWA-001: showPicker кидає в непідтримуваних браузерах — прихований
+    // нативний інпут і так відкривається тапом.
+    try {
+      picker?.showPicker();
+    } catch {
+      picker?.focus();
+      picker?.click();
+    }
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -29,13 +36,14 @@
 
 <div class="date-nav" id="date-nav">
   <button class="dn-btn" onclick={() => onnavigate(-1)} aria-label="Попередній день">◀</button>
-  <span class="dn-date" role="button" tabindex="0" onclick={showPicker} onkeydown={onKeydown}>
+  <span class="dn-date" role="button" tabindex="0" aria-label="Обрати дату" onclick={showPicker} onkeydown={onKeydown}>
     {formatDateLabel(selectedDate)}
   </span>
   <button class="dn-btn" onclick={() => onnavigate(1)} aria-label="Наступний день">▶</button>
   <input
     type="date"
     class="dn-picker"
+    aria-label="Дата тренування"
     bind:this={picker}
     max={todayStr()}
     value={selectedDate}

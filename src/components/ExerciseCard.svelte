@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Exercise } from '../lib/workout';
+  import { MIN_WEIGHT, MAX_WEIGHT } from '../lib/format';
 
   const IMG_RE = /^images\/[a-z0-9-]+\.svg$/;
   const FALLBACK_IMG = `${import.meta.env.BASE_URL}images/icon.svg`;
@@ -29,7 +30,9 @@
     if (weight === undefined) return;
     // Floor at 0.5, never 0: a 0 weight would be interpreted as "remove the
     // setting" in App.setExWeight, silently deleting the user's weight.
-    const next = Math.max(0.5, Math.round((weight + delta) * 10) / 10);
+    // Ceiling at MAX_WEIGHT: over-limit clicks no longer vanish silently
+    // in App's guard (LOGIC: visible no-op at the cap instead).
+    const next = Math.min(MAX_WEIGHT, Math.max(MIN_WEIGHT, Math.round((weight + delta) * 10) / 10));
     onweight(next);
   }
 

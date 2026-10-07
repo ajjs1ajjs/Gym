@@ -3,7 +3,16 @@ import { registerSW } from 'virtual:pwa-register';
 import './app.css';
 import App from './App.svelte';
 
-registerSW({ immediate: true });
+registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    // PWA-001: нова версія чекає — видимий сигнал замість тихого стендбаю.
+    window.dispatchEvent(new CustomEvent<string>('app-error', { detail: 'Доступне оновлення — перезавантажте сторінку.' }));
+  },
+  onOfflineReady() {
+    window.dispatchEvent(new CustomEvent<string>('app-error', { detail: 'Готово до роботи офлайн.' }));
+  },
+});
 
 const target = document.getElementById('app');
 if (!target) throw new Error('#app container not found');

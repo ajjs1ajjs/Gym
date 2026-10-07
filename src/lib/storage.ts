@@ -1,4 +1,4 @@
-import { DATE_RE, todayStr, isRealCalendarDate } from './dates';
+import { todayStr, isRealCalendarDate } from './dates';
 import type { WeightEntry } from './compute';
 import { getAllKeys } from './workout';
 import { MIN_WEIGHT, MAX_WEIGHT } from './format';
@@ -23,82 +23,145 @@ const MAX_WEIGHT_ENTRIES = 5000;
 
 const KNOWN_KEYS: ReadonlySet<string> = new Set(getAllKeys());
 
-function isDayProgress(v: unknown): v is DayProgress {
-  return typeof v === 'object' && v !== null && !Array.isArray(v) &&
-    Object.keys(v).length <= KNOWN_KEYS.size &&
-    Object.entries(v).every(([k, val]) => KNOWN_KEYS.has(k) && typeof val === 'boolean');
-}
-
-function isAllProgress(v: unknown): v is AllProgress {
-  return typeof v === 'object' && v !== null && !Array.isArray(v) &&
-    Object.keys(v).length <= MAX_DAYS &&
-    Object.entries(v).every(([k, day]) => DATE_RE.test(k) && isDayProgress(day));
-}
-
 function isWeightId(v: unknown): v is string | number {
   return (typeof v === 'string' && v.length > 0 && v.length <= 64) ||
     (typeof v === 'number' && Number.isInteger(v) && Number.isSafeInteger(v));
 }
 
-function isWeightEntryArray(v: unknown): v is WeightEntry[] {
-  return Array.isArray(v) && v.length <= MAX_WEIGHT_ENTRIES && v.every((w): w is WeightEntry => {
-    if (typeof w !== 'object' || w === null || Array.isArray(w)) return false;
-    const keys = Object.keys(w);
-    if (keys.length !== 3 || !('id' in w && 'date' in w && 'weight' in w)) return false;
-    const e = w as { id: unknown; date: unknown; weight: unknown };
-    return isWeightId(e.id) &&
-      typeof e.date === 'string' && isRealCalendarDate(e.date) &&
-      typeof e.weight === 'number' && Number.isFinite(e.weight) &&
-      e.weight >= MIN_WEIGHT && e.weight <= MAX_WEIGHT;
-  });
+/** Один запис ваги: строга поштучна перевірка (поганий запис дропається, решта живе). */
+function isWeightEntry(w: unknown): w is WeightEntry {
+  if (typeof w !== 'object' || w === null || Array.isArray(w)) return false;
+  const keys = Object.keys(w);
+  if (keys.length !== 3 || !('id' in w && 'date' in w && 'weight' in w)) return false;
+  const e = w as { id: unknown; date: unknown; weight: unknown };
+  return isWeightId(e.id) &&
+    typeof e.date === 'string' && isRealCalendarDate(e.date) &&
+    typeof e.weight === 'number' && Number.isFinite(e.weight) &&
+    e.weight >= MIN_WEIGHT && e.weight <= MAX_WEIGHT;
 }
 
-function isExWeights(v: unknown): v is Record<string, number> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v) &&
-    Object.keys(v).length <= KNOWN_KEYS.size &&
-    Object.entries(v).every(([k, val]) =>
-      KNOWN_KEYS.has(k) && typeof val === 'number' && Number.isFinite(val) &&
-      val >= MIN_WEIGHT && val <= MAX_WEIGHT);
+/** День: невідомі ключі (видалені вправи) відкидаємо з warn; хибний тип = битий день. */
+function sanitizeDay(day: unknown): DayProgress | null {
+  if (typeof day !== 'object' || day === null || Array.isArray(day)) return null;
+  const clean: DayProgress = {};
+  for (const [k, v] of Object.entries(day)) {
+    if (!KNOWN_KEYS.has(k)) {
+      console.warn(`Ignoring unknown exercise key in storage: ${k}`);
+      continue;
+    }
+    if (typeof v !== 'boolean') return null;
+    clean[k] = v;
+  }
+  return clean;
 }
 
-function parse<T>(raw: string | null, key: string, validator: (v: unknown) => v is T): T | null {
-  if (!raw) return null;
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function safeGetItem(key: string): string | null {
   try {
-    const parsed = JSON.parse(raw);
-    if (validator(parsed)) return parsed;
-    console.error(`Invalid schema for storage key: ${key}`);
-    return null;
+    return localStorage.getItem(key);
   } catch {
-    return null;
+    return null; // SecurityError (приватний режим) тощо
   }
 }
 
-function persist(key: string, value: unknown): void {
+function alreadyQuarantined(key: string): boolean {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-      throw new StorageQuotaError();
+    for (let i = 0; i < localStorage.length; i++) {
+      if ((localStorage.key(i) ?? '').startsWith(key + '.corrupt.')) return true;
     }
-    throw e;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+function quarantine(key: string, raw: string): void {
+  try {
+    if (alreadyQuarantined(key)) return;
+    localStorage.setItem(`${key}.corrupt.${Date.now()}`, raw);
+  } catch {
+    /* квота/доступ — більше нічого не вдіємо */
+  }
+}
+
+function readJson(key: string): { found: true; value: unknown } | { found: false } {
+  const raw = safeGetItem(key);
+  if (!raw) return { found: false };
+  try {
+    return { found: true, value: JSON.parse(raw) };
+  } catch {
+    // DATA-002: битий JSON — у карантин (один раз), а не мовчазна втрата.
+    console.error(`Unparseable JSON for storage key: ${key}; quarantined`);
+    quarantine(key, raw);
+    return { found: false };
+  }
+}
+
+function trimDays(all: AllProgress): AllProgress {
+  const keys = Object.keys(all).sort();
+  if (keys.length <= MAX_DAYS) return all;
+  const keep = new Set(keys.slice(keys.length - MAX_DAYS));
+  const out: AllProgress = {};
+  for (const [k, v] of Object.entries(all)) {
+    if (keep.has(k)) out[k] = v;
+  }
+  return out;
+}
+
+function safeSetItem(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeRemoveItem(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
   }
 }
 
 export function loadAllProgress(): AllProgress {
-  const data = parse<AllProgress>(localStorage.getItem(STORAGE_KEY), STORAGE_KEY, isAllProgress);
-  if (data) return data;
+  const r = readJson(STORAGE_KEY);
+  if (r.found && isPlainObject(r.value)) {
+    const out: AllProgress = {};
+    for (const [k, day] of Object.entries(r.value)) {
+      if (!isRealCalendarDate(k)) {
+        console.warn(`Ignoring non-date key in storage: ${k}`);
+        continue;
+      }
+      const clean = sanitizeDay(day);
+      if (clean === null) continue;
+      out[k] = clean;
+    }
+    return trimDays(out);
+  }
+  if (r.found) console.error(`Invalid schema for storage key: ${STORAGE_KEY}`);
 
-  const old = localStorage.getItem(LEGACY_KEY);
-  if (old) {
-    const p = parse<Record<string, unknown>>(old, LEGACY_KEY, (v): v is Record<string, unknown> =>
-      typeof v === 'object' && v !== null && !Array.isArray(v)
-    );
-    if (p) {
-      // Validate with the real guards before accepting — never cast blindly.
-      const hasDateKeys = Object.keys(p).some((k) => DATE_RE.test(k));
+  // Legacy-міграція: валідуємо тими самими гардами, пишемо крізь safe-функції,
+  // legacy-ключ прибираємо завжди (навіть битий — DATA-004).
+  const old = readJson(LEGACY_KEY);
+  try {
+    if (old.found && isPlainObject(old.value)) {
+      const p = old.value;
+      const hasDateKeys = Object.keys(p).some((k) => isRealCalendarDate(k));
       let migrated: AllProgress | null = null;
       if (hasDateKeys) {
-        if (isAllProgress(p)) migrated = p;
+        const out: AllProgress = {};
+        for (const [k, day] of Object.entries(p)) {
+          if (!isRealCalendarDate(k)) continue;
+          const clean = sanitizeDay(day);
+          if (clean === null) continue;
+          out[k] = clean;
+        }
+        if (Object.keys(out).length > 0) migrated = trimDays(out);
       } else if (
         Object.keys(p).length <= KNOWN_KEYS.size &&
         Object.values(p).every((val) => typeof val === 'boolean')
@@ -109,13 +172,14 @@ export function loadAllProgress(): AllProgress {
         }
         if (Object.keys(day).length > 0) migrated = { [todayStr()]: day };
       }
-      localStorage.removeItem(LEGACY_KEY);
       if (migrated) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-        return migrated;
+        if (safeSetItem(STORAGE_KEY, JSON.stringify(migrated))) return migrated;
+        return {};
       }
       return {};
     }
+  } finally {
+    safeRemoveItem(LEGACY_KEY);
   }
   return {};
 }
@@ -125,19 +189,16 @@ export function saveAllProgress(all: AllProgress): void {
 }
 
 export function loadWeights(): WeightEntry[] {
-  const raw = localStorage.getItem(WEIGHT_KEY);
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!isWeightEntryArray(parsed)) {
-      console.error('Invalid schema for storage key');
-      return [];
-    }
-    // Normalize legacy numeric ids to strings (crypto ids are strings).
-    return parsed.map((w) => ({ ...w, id: String(w.id) }));
-  } catch {
+  const r = readJson(WEIGHT_KEY);
+  if (!r.found || !Array.isArray(r.value)) {
+    if (r.found) console.error('Invalid schema for storage key');
     return [];
   }
+  // DATA-001: погані записи дропаємо поштучно; надлишок обрізаємо (перші = новіші).
+  const clean = r.value
+    .filter(isWeightEntry)
+    .map((w) => ({ ...w, id: String(w.id) }));
+  return clean.slice(0, MAX_WEIGHT_ENTRIES);
 }
 
 export function saveWeights(weights: WeightEntry[]): void {
@@ -145,12 +206,43 @@ export function saveWeights(weights: WeightEntry[]): void {
 }
 
 export function loadExWeights(): Record<string, number> {
-  const data = parse<Record<string, number>>(localStorage.getItem(EX_WEIGHT_KEY), EX_WEIGHT_KEY, isExWeights);
-  return data ?? {};
+  const r = readJson(EX_WEIGHT_KEY);
+  if (!r.found || !isPlainObject(r.value)) {
+    if (r.found) console.error('Invalid schema for storage key');
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(r.value)) {
+    if (!KNOWN_KEYS.has(k)) {
+      console.warn(`Ignoring unknown exercise key in storage: ${k}`);
+      continue;
+    }
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < MIN_WEIGHT || v > MAX_WEIGHT) continue;
+    out[k] = v;
+  }
+  return out;
 }
 
 export function saveExWeights(weights: Record<string, number>): void {
   persist(EX_WEIGHT_KEY, weights);
+}
+
+function isQuotaError(e: unknown): boolean {
+  // DATA-005: Chrome/Safari QuotaExceededError + Firefox NS_ERROR_DOM_QUOTA_REACHED
+  // (приватний режим) + застарілий код 22.
+  return e instanceof DOMException &&
+    (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22);
+}
+
+function persist(key: string, value: unknown): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    if (isQuotaError(e)) {
+      throw new StorageQuotaError();
+    }
+    throw e;
+  }
 }
 
 export { STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_KEY, LEGACY_KEY };

@@ -46,6 +46,7 @@
   <input
     type="number"
     id="dlg-input"
+    aria-label="Вага в кілограмах"
     step="0.5"
     min="0.5"
     inputmode="decimal"

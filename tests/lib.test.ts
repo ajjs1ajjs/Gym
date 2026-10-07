@@ -79,6 +79,14 @@ describe('toWeight', () => {
     expect(toWeight('999')).toBe(999);
     expect(toWeight('999.9')).toBeNull();
   });
+
+  it('rejects ambiguous thousand separators', () => {
+    // LOGIC-002: "1,000" більше не стає 1 кг.
+    expect(toWeight('1,000')).toBeNull();
+    expect(toWeight('1.000,5')).toBeNull();
+    expect(toWeight('1,5,0')).toBeNull();
+    expect(toWeight('1,5')).toBe(1.5);
+  });
 });
 
 describe('computeWeightDiffs', () => {

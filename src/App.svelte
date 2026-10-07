@@ -38,6 +38,8 @@ let toastMsg = $state('');
 let dialog = $state<{ key: string; initial: number | null } | null>(null);
 let deferredPrompt = $state<BeforeInstallPromptEvent | null>(null);
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
+// Лічильник примусового перемонтування блоків після відкату (див. persist).
+let uiTick = $state(0);
 
 const allKeys = getAllKeys();
 const knownKeys = new Set(allKeys);
@@ -62,9 +64,19 @@ function showToast(msg: string): void {
 }
 
 function persist(fn: () => void): void {
+  // DATA-003: снапшот до мутації — при квоті відкочуємо, щоб UI не брехав
+  // про збережене (раніше стан мутував, save падав, дані розходились).
+  // Копії, а не ті самі референси: інакше Svelte не помітить повернення.
+  // uiTick форсує перемонтування блоків: Svelte не пересинхронізує
+  // user-toggled чекбокс, якщо стан повернувся до початкового в тому ж циклі.
+  const snap = { all, weights, exWeights };
   try {
     fn();
   } catch (e) {
+    all = { ...snap.all };
+    weights = [...snap.weights];
+    exWeights = { ...snap.exWeights };
+    uiTick += 1;
     if (e instanceof StorageQuotaError) showToast('Помилка збереження: сховище переповнене');
     else throw e;
   }
@@ -138,7 +150,7 @@ function reloadFromStorage(): void {
       showToast('Помилка скидання прогресу');
       return;
     }
-    selectedDate = todayStr();
+    // LOGIC-003: лишаємось на скинутому дні (раніше стрибало на сьогодні).
     showToast('Прогрес скинуто');
   }
 
@@ -153,6 +165,8 @@ function reloadFromStorage(): void {
       const entry: WeightEntry = { id: existingEntry?.id ?? newWeightId(), date, weight };
       if (existingIdx >= 0) {
         weights = [...weights.slice(0, existingIdx), entry, ...weights.slice(existingIdx + 1)];
+        // LOGIC-003: перезапис видно, а не мовчки.
+        showToast('Запис за цю дату перезаписано');
       } else {
         const insertIdx = weights.findIndex((w) => w.date < date);
         weights = insertIdx >= 0
@@ -171,6 +185,12 @@ function reloadFromStorage(): void {
     persist(() => {
       const existingIdx = weights.findIndex((w) => w.id === id);
       if (existingIdx < 0) return;
+      // LOGIC-001: зміна дати на зайняту створювала б дублікат (інваріант
+      // addWeight — одна дата = один запис). Забороняємо зі зрозумілою помилкою.
+      if (weights.some((w) => w.id !== id && w.date === date)) {
+        showToast('На цю дату вже є запис');
+        return;
+      }
       const entry: WeightEntry = { id, date, weight };
       // Remove old, insert at correct position
       const without = [...weights.slice(0, existingIdx), ...weights.slice(existingIdx + 1)];
@@ -234,6 +254,7 @@ function reloadFromStorage(): void {
 <DateNav {selectedDate} onnavigate={navigateDate} onpick={pickDate} ontoday={() => (selectedDate = todayStr())} />
 
 <main id="blocks">
+  {#key uiTick}
   {#each WORKOUT as block, i (block.title)}
     <WorkoutBlock
       block={block}
@@ -245,6 +266,7 @@ function reloadFromStorage(): void {
       onweight={setExWeight}
     />
   {/each}
+  {/key}
 </main>
 
 <WeightSection

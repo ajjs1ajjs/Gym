@@ -47,6 +47,14 @@
       onadd(weight, wDate);
     }
     wInput = '';
+    // LOGIC-003: обраний день не скидаємо (раніше втрачався після кожного додавання).
+  }
+
+  function cancelEdit(): void {
+    // LOGIC-003: скасування редагування (раніше editId скидався тільки сабмітом).
+    editId = null;
+    wInput = '';
+    error = '';
     wDate = todayStr();
   }
 
@@ -71,7 +79,7 @@
 </script>
 
 <div class="block block-weight">
-  <div class="block-header" role="button" tabindex="0" onclick={toggle} onkeydown={onKeydown}>
+  <div class="block-header" role="button" tabindex="0" aria-expanded={open} aria-label="Вага: згорнути/розгорнути" onclick={toggle} onkeydown={onKeydown}>
     <div class="icon" style="background:var(--accent4);color:#000">⚖️</div>
     <div class="title">Вага</div>
     <div class="arrow" class:open>▾</div>
@@ -85,7 +93,7 @@
         </div>
         {#if diff !== null}
           <div class="weight-stat {diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">
-            <div class="val">{diff > 0 ? '+' : ''}{diff}</div>
+            <div class="val">{diff > 0 ? '+' : ''}{diff.toFixed(1)}</div>
             <div class="label">Зміна</div>
           </div>
         {/if}
@@ -110,6 +118,7 @@
         type="number"
         id="w-input"
         placeholder="Вага (кг)"
+        aria-label="Вага в кілограмах"
         step="0.1"
         min="0.5"
         max="999"
@@ -117,8 +126,11 @@
         bind:value={wInput}
         onkeydown={(e) => e.key === 'Enter' && submit()}
       />
-      <input type="date" id="w-date" bind:value={wDate} max={todayStr()} />
+      <input type="date" id="w-date" bind:value={wDate} max={todayStr()} aria-label="Дата вимірювання" />
       <button class="btn-add" id="w-add" onclick={submit}>{editId !== null ? '✎ Зберегти' : '+ Додати'}</button>
+      {#if editId !== null}
+        <button class="btn-cancel" id="w-cancel" onclick={cancelEdit} aria-label="Скасувати редагування">✕</button>
+      {/if}
     </div>
 
     {#if weights.length > 0}
@@ -133,8 +145,8 @@
             </span>
           {/if}
           <div class="w-actions">
-            <button class="w-btn w-btn-edit" onclick={() => startEdit(w.id)}>✎</button>
-            <button class="w-btn w-btn-del" onclick={() => ondelete(w.id)}>✕</button>
+            <button class="w-btn w-btn-edit" aria-label="Редагувати запис" onclick={() => startEdit(w.id)}>✎</button>
+            <button class="w-btn w-btn-del" aria-label="Видалити запис" onclick={() => ondelete(w.id)}>✕</button>
           </div>
         </div>
       {/each}

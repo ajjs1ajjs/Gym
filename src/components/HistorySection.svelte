@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { DATE_RE, formatDate, isValidDateEntry } from '../lib/dates';
+  import { formatDate, isValidDateEntry, isRealCalendarDate } from '../lib/dates';
   import { progressPct } from '../lib/compute';
   import { getAllKeys } from '../lib/workout';
   import type { AllProgress } from '../lib/storage';
@@ -18,8 +18,9 @@
   const allKeys = getAllKeys();
   const total = allKeys.length;
   const dates = $derived(
+    // LOGIC-002: реальна календарна дата (2024-02-30 більше не проходить).
     Object.keys(all)
-      .filter((d) => DATE_RE.test(d) && isValidDateEntry(all[d]))
+      .filter((d) => isRealCalendarDate(d) && isValidDateEntry(all[d]))
       .sort()
       .reverse(),
   );
@@ -37,7 +38,7 @@
 </script>
 
 <div class="block block-history">
-  <div class="block-header" role="button" tabindex="0" onclick={toggle} onkeydown={onKeydown}>
+  <div class="block-header" role="button" tabindex="0" aria-expanded={open} aria-label="Історія тренувань: згорнути/розгорнути" onclick={toggle} onkeydown={onKeydown}>
     <div class="icon" style="background:var(--accent7);color:#fff">📋</div>
     <div class="title">Історія тренувань</div>
     <div class="arrow" class:open>▾</div>
@@ -56,6 +57,7 @@
           class:history-curr={isSel}
           role="button"
           tabindex="0"
+          aria-label="Тренування {formatDate(d)}: {done} з {total}"
           onclick={() => onselect(d)}
           onkeydown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {

@@ -7,7 +7,7 @@
 - **CI/CD**: CI-воркфлоу (`lint → type-check → tests → build`) повернуто в репозиторій.
 - **Deferred release**: `Release` воркфлоу публікує PWA в `ajjs1ajjs/dist` за розкладом
   **1 жовтня** (`cron: 0 6 1 10 *`, після скидання місячного ліміту GitHub Actions) та
-  вручну через `workflow_dispatch`. Версія тепер береться як `max(package.json, latest dist)`
+  (`workflow_dispatch` — тільки ручний запуск; cron не додано свідомо: жодних авторелізів). Версія обчислюється як `max(package.json, latest dist)`
   + bump — монотонна навіть якщо `dist` відстає.
 
 ### Fixed

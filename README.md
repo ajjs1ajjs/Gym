@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
 
 # Gym Tracker — Source Code
 
@@ -91,7 +91,7 @@ npm run preview    # перегляд білд-результату
 
 Реліз — **Actions → Release → Run workflow** (вибір `bump`); воркфлоу сам бере наступний
 тег `gym-v<semver>`, збирає PWA й публікує `gym-site.tar.gz`. Окрім ручного запуску
-воркфлоу **відкладений на 1 жовтня** (`schedule`, 06:00 UTC) — коли оновлюється місячний
+Ручний запуск: **Actions → Release → Run workflow**. Автозапусків за розкладом нема (свідомо: релізи тільки вручну).
 ліміт GitHub Actions. Звичайні коміти реліз не запускають. Локально: `npm test`, `npm run build`.
 
 ## Посилання

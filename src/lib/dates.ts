@@ -15,7 +15,9 @@ export function todayStr(): string {
 }
 
 export function shiftDate(dateStr: string, delta: number): string {
-  if (!isRealCalendarDate(dateStr) || !Number.isInteger(delta)) return todayStr();
+  if (!isRealCalendarDate(dateStr)) return todayStr();
+  // LOGIC-002: битий delta не стрибає на сьогодні, а лишає дату (не маскуємо баг навігації).
+  if (!Number.isInteger(delta)) return dateStr;
   const parts = dateStr.split('-').map(Number);
   const y = parts[0] as number;
   const m = parts[1] as number;
@@ -32,8 +34,10 @@ export function formatDate(str: string): string {
 
 export function formatDateLabel(str: string): string {
   if (!isRealCalendarDate(str)) return '—';
-  if (str === todayStr()) return 'Сьогодні';
-  const y = new Date();
+  // LOGIC-002: одне зчитування «зараз» — інакше опівнічна гонка дає розбіжність Сьогодні/Вчора.
+  const now = new Date();
+  if (str === localDateStr(now)) return 'Сьогодні';
+  const y = new Date(now);
   y.setDate(y.getDate() - 1);
   if (str === localDateStr(y)) return 'Вчора';
   return new Date(str + 'T00:00:00').toLocaleDateString('uk-UA', {
