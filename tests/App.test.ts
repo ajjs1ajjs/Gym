@@ -205,19 +205,34 @@ describe('App undo flows', () => {
 describe('App storage safety', () => {
   it('rolls back UI state when storage quota hits', async () => {
     // DATA-003: мутація до save + відкат, щоб UI не брехав.
+    // vi.stubGlobal замість spyOn: на Linux-CI (Node 22) localStorage — це
+    // jsdom-Proxy, на якому vi.spyOn тихо не перехоплює (метод на прототипі),
+    // тож save проходив повз мок. Стаб підміняє глобальний об'єкт цілком.
     render(App);
     const cb = document.getElementById('cb-leg-press') as HTMLInputElement;
-    // Усі записи протягом дії падають (не лише перший): mockImplementationOnce
-    // на Linux-CI з'їдав інший виклик setItem, і save проходив повз мок.
-    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
-      throw new DOMException('full', 'QuotaExceededError');
-    });
-    cb.click();
-    await tick();
-    await tick();
-    spy.mockRestore();
-    expect(localStorage.getItem(V2)).toBeNull();
-    expect(document.querySelector('.toast')?.textContent).toContain('переповнене');
+    const real = localStorage;
+    const quotaStub = {
+      get length() {
+        return real.length;
+      },
+      clear: () => real.clear(),
+      getItem: (k: string) => real.getItem(k),
+      key: (i: number) => real.key(i),
+      removeItem: (k: string) => real.removeItem(k),
+      setItem: () => {
+        throw new DOMException('full', 'QuotaExceededError');
+      },
+    } as unknown as Storage;
+    vi.stubGlobal('localStorage', quotaStub);
+    try {
+      cb.click();
+      await tick();
+      await tick();
+      expect(document.querySelector('.toast')?.textContent).toContain('переповнене');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(real.getItem(V2)).toBeNull();
     expect(document.querySelector('.progress-text')?.textContent).toContain(`0/${TOTAL}`);
     // Вузол перемонтовано відкатом — перечитуємо, старий референс мертвий.
     const cb2 = document.getElementById('cb-leg-press') as HTMLInputElement;
