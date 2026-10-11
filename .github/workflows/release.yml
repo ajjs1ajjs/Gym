@@ -1,9 +1,12 @@
 name: Release
 
-# Manual release only (Actions -> Release -> Run workflow).
-# Builds the PWA and publishes the archive to the public
-# ajjs1ajjs/dist repo, tagging it there as `gym-v<semver>`, then commits the
-# version bump back to main.
+# Manual release only (Actions -> Release -> Run workflow), mirror of
+# scripts/Release-Local.ps1. Builds the PWA, mirrors it into the public
+# ajjs1ajjs/dist repo at /gym (GitHub Pages) and cuts a `gym-v<semver>` tag.
+#
+# The source repo is public; the site is served from ajjs1ajjs/dist.
+# If a run finds no site changes it publishes nothing and cuts no tag; only
+# real changes bump the version and create a release.
 
 on:
   workflow_dispatch:
@@ -27,7 +30,7 @@ concurrency:
 
 jobs:
   release:
-    name: Build site and publish to dist
+    name: Build PWA and publish to dist/gym
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -36,16 +39,10 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Node.js
-        uses: actions/setup-node@26b0ec16c0613f838305ffbd9287db8e36580d362 # v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: '22'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Lint
-        run: npm run lint
 
       - name: Resolve next version
         id: ver
@@ -74,13 +71,14 @@ jobs:
           echo "tag=${PREFIX}${NEXT}" >> "$GITHUB_OUTPUT"
           echo "Releasing ${PREFIX}${NEXT}"
 
-      - name: Bump version in source
-        env:
-          NEXT: ${{ steps.ver.outputs.version }}
-        run: |
-          set -euo pipefail
-          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.env.NEXT;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
-          node -p "require('./package.json').version"
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Security audit (high+)
+        run: npm audit --audit-level=high
+
+      - name: Lint
+        run: npm run lint
 
       - name: Tests
         run: npm test
@@ -88,14 +86,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Package site archive + checksum
-        run: |
-          set -euo pipefail
-          tar -czf gym-site.tar.gz -C dist .
-          sha256sum gym-site.tar.gz > gym-site.tar.gz.sha256
-          ls -la gym-site.tar.gz*
-
-      - name: Publish release to ajjs1ajjs/dist
+      # Compare the fresh build with what is live; skip tagging/bumping when
+      # nothing changed so re-runs stay idempotent.
+      - name: Publish site to ajjs1ajjs/dist
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
           DIST_REPO: ajjs1ajjs/dist
@@ -103,22 +97,57 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$GH_TOKEN" || { echo "::error::PUBLIC_RELEASE_TOKEN is not set"; exit 1; }
-          # dist is shared: --generate-notes would pick a foreign tag as base.
-          TAGS=$(gh release list --repo "$DIST_REPO" --limit 200 --json tagName --jq '.[].tagName' 2>/dev/null || true)
-          PREV=$(echo "$TAGS" | grep -E "^gym-v[0-9]+\.[0-9]+\.[0-9]+$" | grep -v "^${TAG}$" | sed "s/^gym-v//" | sort -V | tail -n 1 || true)
-          if [ -n "$PREV" ]; then
-            NOTES="**Full Changelog**: https://github.com/${DIST_REPO}/compare/gym-v${PREV}...${TAG}"
+          tmp="$RUNNER_TEMP/dist-gym"
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${DIST_REPO}.git" "$tmp" --depth 1
+          mkdir -p "$tmp/gym"
+          # Keep the destination .nojekyll as-is; everything else is a mirror.
+          rsync -a --delete --exclude '.nojekyll' dist/ "$tmp/gym/"
+          cd "$tmp"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A gym
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No site changes to publish."
           else
-            NOTES="Gym Tracker ${TAG}"
+            git commit -m "chore(gym): publish site build ($TAG)"
+            git push origin HEAD:main
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Published $TAG build."
           fi
-          gh release create "$TAG" gym-site.tar.gz gym-site.tar.gz.sha256 --repo "$DIST_REPO" --title "Gym Tracker v${TAG#gym-v}" --notes "$NOTES"
 
-      - name: Commit version bump
-        continue-on-error: true
+      # Cut a release tag only when something shipped.
+      - name: Create release tag
+        if: steps.publish.outputs.changed == 'true'
         env:
+          GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_TOKEN }}
+          DIST_REPO: ajjs1ajjs/dist
           TAG: ${{ steps.ver.outputs.tag }}
         run: |
           set -euo pipefail
+          if gh release view "$TAG" --repo "$DIST_REPO" >/dev/null 2>&1; then
+            echo "Release $TAG already exists."
+          else
+            # dist is shared: --generate-notes would pick a foreign tag as base.
+            TAGS=$(gh release list --repo "$DIST_REPO" --limit 200 --json tagName --jq '.[].tagName' 2>/dev/null || true)
+            PREV=$(echo "$TAGS" | grep -E "^gym-v[0-9]+\.[0-9]+\.[0-9]+$" | grep -v "^${TAG}$" | sed "s/^gym-v//" | sort -V | tail -n 1 || true)
+            if [ -n "$PREV" ]; then
+              NOTES="**Full Changelog**: https://github.com/${DIST_REPO}/compare/gym-v${PREV}...${TAG}"
+            else
+              NOTES="Gym Tracker ${TAG}"
+            fi
+            gh release create "$TAG" --repo "$DIST_REPO" --title "Gym Tracker v${TAG#gym-v}" --notes "$NOTES"
+          fi
+
+      # Bump the source version only when something shipped.
+      - name: Bump version in source
+        if: steps.publish.outputs.changed == 'true'
+        env:
+          NEXT: ${{ steps.ver.outputs.version }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.env.NEXT;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package.json

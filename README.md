@@ -2,7 +2,7 @@
 
 # Gym Tracker — Source Code
 
-> **Це приватний репозиторій з вихідним кодом Gym workout tracker PWA.**
+> **Це репозиторій з вихідним кодом Gym workout tracker PWA.**
 > Готовий застосунок хоститься з публічного репозиторію артефактів:
 > **https://ajjs1ajjs.github.io/dist/gym/**
 
@@ -93,14 +93,15 @@ npm run preview    # перегляд білд-результату
 
 ## Деплой
 
-Кодовий репозиторій приватний; публічний артефакт — зібрана PWA в
-[`ajjs1ajjs/dist`](https://github.com/ajjs1ajjs/dist) (тека `gym/`), яку віддає GitHub Pages:
+Сайт — зібрана PWA в теці `gym/` публічного репо
+[`ajjs1ajjs/dist`](https://github.com/ajjs1ajjs/dist), який віддає GitHub Pages:
 **https://ajjs1ajjs.github.io/dist/gym/**.
 
-Реліз — **Actions → Release → Run workflow** (вибір `bump`); воркфлоу сам бере наступний
-тег `gym-v<semver>`, збирає PWA й публікує `gym-site.tar.gz`. Окрім ручного запуску
-Ручний запуск: **Actions → Release → Run workflow**. Автозапусків за розкладом нема (свідомо: релізи тільки вручну).
-ліміт GitHub Actions. Звичайні коміти реліз не запускають. Локально: `npm test`, `npm run build`.
+Реліз — **локально**: `.\scripts\Release-Local.ps1 -Bump minor` — скрипт перевіряє,
+збирає PWA, дзеркалить білд у `dist/gym/`, створює тег `gym-v<semver>` і бампить версію.
+Якщо білд не змінився — ні публікації, ні тега, ні бампа. Ручний fallback:
+**Actions → Release → Run workflow**. Автозапусків за розкладом нема (свідомо: релізи
+тільки вручну). Звичайні коміти реліз не запускають.
 
 ## Посилання
 

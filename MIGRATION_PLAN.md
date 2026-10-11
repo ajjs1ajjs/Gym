@@ -43,5 +43,5 @@
 ## Сумісність з GitHub Pages
 
 - `base: '/dist/gym/'` — асети завантажуються з піддиректорії `/dist/gym/`.
-- Деплой: реліз (Actions → Release, або відкладений запуск 1 жовтня) збирає `dist/`
-  і публікує `gym-site.tar.gz` у публічний репозиторій `ajjs1ajjs/dist`.
+- Деплой: локальний реліз (`scripts/Release-Local.ps1`) дзеркалить зібраний `dist/`
+  у теку `gym/` публічного репозиторію `ajjs1ajjs/dist` (GitHub Pages).
