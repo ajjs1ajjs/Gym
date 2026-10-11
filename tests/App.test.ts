@@ -207,7 +207,9 @@ describe('App storage safety', () => {
     // DATA-003: мутація до save + відкат, щоб UI не брехав.
     render(App);
     const cb = document.getElementById('cb-leg-press') as HTMLInputElement;
-    const spy = vi.spyOn(localStorage, 'setItem').mockImplementationOnce(() => {
+    // Усі записи протягом дії падають (не лише перший): mockImplementationOnce
+    // на Linux-CI з'їдав інший виклик setItem, і save проходив повз мок.
+    const spy = vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
       throw new DOMException('full', 'QuotaExceededError');
     });
     cb.click();
