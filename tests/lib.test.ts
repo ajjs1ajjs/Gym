@@ -9,7 +9,7 @@ import {
   isUsableDateStr,
 } from '../src/lib/dates';
 import { toWeight } from '../src/lib/format';
-import { computeWeightDiffs, progressPct, newWeightId } from '../src/lib/compute';
+import { computeWeightDiffs, progressPct, newWeightId, buildSparkline } from '../src/lib/compute';
 import type { WeightEntry } from '../src/lib/compute';
 
 describe('localDateStr', () => {
@@ -133,6 +133,43 @@ describe('newWeightId', () => {
     const ids = new Set(Array.from({ length: 100 }, () => newWeightId()));
     expect(ids.size).toBe(100);
     for (const id of ids) expect(typeof id).toBe('string');
+  });
+});
+
+describe('buildSparkline', () => {
+  it('returns null for empty input or degenerate canvas', () => {
+    expect(buildSparkline([])).toBeNull();
+    expect(buildSparkline([NaN, Infinity])).toBeNull();
+    expect(buildSparkline([80, 81], 10, 10, 8)).toBeNull();
+  });
+
+  it('places min at the bottom and max at the top of the inner area', () => {
+    const s = buildSparkline([80, 90], 300, 84, 8);
+    expect(s).not.toBeNull();
+    expect(s?.min).toBe(80);
+    expect(s?.max).toBe(90);
+    expect(s?.line).toBe('M8 76 L292 8');
+    expect(s?.last).toEqual({ x: 292, y: 8 });
+  });
+
+  it('centers flat series instead of dividing by zero', () => {
+    const s = buildSparkline([80, 80, 80], 300, 84, 8);
+    expect(s?.line).toBe('M8 42 L150 42 L292 42');
+  });
+
+  it('centers a single point and closes the area for multiple points', () => {
+    const single = buildSparkline([80], 300, 84, 8);
+    expect(single?.line).toBe('M150 42');
+    expect(single?.area).toBe('');
+
+    const multi = buildSparkline([80, 81, 82], 300, 84, 8);
+    expect(multi?.area.startsWith('M8 76 L150 42 L292 8')).toBe(true);
+    expect(multi?.area.endsWith('L292 76 L8 76 Z')).toBe(true);
+  });
+
+  it('filters non-finite values before scaling', () => {
+    const s = buildSparkline([80, NaN, 90, Infinity], 300, 84, 8);
+    expect(s?.line).toBe('M8 76 L292 8');
   });
 });
 

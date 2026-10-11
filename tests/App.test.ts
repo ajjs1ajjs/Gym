@@ -4,8 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/svelte';
 import App from '../src/App.svelte';
 import { shiftDate, todayStr } from '../src/lib/dates';
+import { createBackup } from '../src/lib/backup';
 
 const V2 = 'gym-tracker-progress-v2';
+const WEIGHTS = 'gym-tracker-weights';
+
+const TOTAL = 19;
 
 beforeEach(() => {
   localStorage.clear();
@@ -18,6 +22,8 @@ describe('App', () => {
     expect(screen.getByText('Інтенсивний фінішер')).toBeInTheDocument();
     expect(screen.getByText('Блок для кору')).toBeInTheDocument();
     expect(screen.getByText('Бурпі')).toBeInTheDocument();
+    expect(screen.getByText('Скакалка')).toBeInTheDocument();
+    expect(screen.getByText('Гіперекстензія')).toBeInTheDocument();
     expect(screen.getByText('Ходьба з нахилом')).toBeInTheDocument();
   });
 
@@ -30,7 +36,7 @@ describe('App', () => {
 
     const all = JSON.parse(localStorage.getItem(V2) ?? '{}');
     expect(all[todayStr()]).toHaveProperty('leg-press', true);
-    expect(document.querySelector('.progress-text')?.textContent).toContain('1/10');
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
   });
 
   it('untoggles exercise and removes from storage', async () => {
@@ -45,7 +51,79 @@ describe('App', () => {
 
     const all = JSON.parse(localStorage.getItem(V2) ?? '{}');
     expect(all[todayStr()]).not.toHaveProperty('leg-press');
-    expect(document.querySelector('.progress-text')?.textContent).toContain('1/10');
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+  });
+
+  it('starts a rest timer from an exercise and can stop it', async () => {
+    render(App);
+    const btn = document.querySelector('.ew-timer') as HTMLButtonElement;
+    expect(btn).toBeTruthy();
+    btn.click();
+    await tick();
+    const timer = screen.getByRole('timer');
+    expect(timer).toBeInTheDocument();
+    expect(timer.textContent).toContain('1:30'); // перша вправа — 90 сек
+    const stop = timer.querySelector('.rt-stop') as HTMLButtonElement;
+    stop.click();
+    await tick();
+    expect(screen.queryByRole('timer')).not.toBeInTheDocument();
+  });
+
+  it('exports a backup file', async () => {
+    localStorage.setItem(V2, JSON.stringify({ [todayStr()]: { burpee: true } }));
+    render(App);
+    const createSpy = vi.fn(() => 'blob:mock');
+    const revokeSpy = vi.fn();
+    const origCreate = URL.createObjectURL;
+    const origRevoke = URL.revokeObjectURL;
+    Object.defineProperty(URL, 'createObjectURL', { value: createSpy, configurable: true, writable: true });
+    Object.defineProperty(URL, 'revokeObjectURL', { value: revokeSpy, configurable: true, writable: true });
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    try {
+      (document.getElementById('btn-export') as HTMLButtonElement).click();
+      await tick();
+      expect(createSpy).toHaveBeenCalledTimes(1);
+      expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(document.querySelector('.toast')?.textContent).toContain('Бекап завантажено');
+    } finally {
+      clickSpy.mockRestore();
+      Object.defineProperty(URL, 'createObjectURL', { value: origCreate, configurable: true, writable: true });
+      Object.defineProperty(URL, 'revokeObjectURL', { value: origRevoke, configurable: true, writable: true });
+    }
+  });
+
+  it('imports a backup and replaces the state', async () => {
+    const backup = createBackup({
+      progress: { [todayStr()]: { burpee: true } },
+      weights: [{ id: 'w-1', date: todayStr(), weight: 80 }],
+      exWeights: { 'leg-press': 100 },
+    });
+    render(App);
+    const input = document.getElementById('import-file') as HTMLInputElement;
+    const file = new File([backup], 'backup.json', { type: 'application/json' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.weight-entry')).not.toBeNull();
+    });
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toHaveProperty('burpee', true);
+    expect(JSON.parse(localStorage.getItem(WEIGHTS) ?? '[]')).toHaveLength(1);
+    // 100 кг підтягнулось у поле ваги вправи.
+    expect(document.body.textContent).toContain('100 кг');
+  });
+
+  it('shows an error toast for an invalid import file', async () => {
+    render(App);
+    const input = document.getElementById('import-file') as HTMLInputElement;
+    const file = new File(['not json at all'], 'bad.json', { type: 'application/json' });
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => {
+      expect(document.querySelector('.toast')?.textContent).toContain('коректним JSON');
+    });
   });
 });
 
@@ -63,7 +141,7 @@ describe('App storage safety', () => {
     spy.mockRestore();
     expect(localStorage.getItem(V2)).toBeNull();
     expect(document.querySelector('.toast')?.textContent).toContain('переповнене');
-    expect(document.querySelector('.progress-text')?.textContent).toContain('0/10');
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`0/${TOTAL}`);
     // Вузол перемонтовано відкатом — перечитуємо, старий референс мертвий.
     const cb2 = document.getElementById('cb-leg-press') as HTMLInputElement;
     expect(cb2.checked).toBe(false);

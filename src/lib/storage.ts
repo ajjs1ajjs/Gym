@@ -128,22 +128,32 @@ function safeRemoveItem(key: string): void {
   }
 }
 
+/**
+ * Чистий парсер прогресу (спільний для localStorage та імпорту бекапу).
+ * `null` — значення взагалі не схоже на мапу днів; інакше — очищений результат.
+ */
+export function parseProgress(value: unknown): AllProgress | null {
+  if (!isPlainObject(value)) return null;
+  const out: AllProgress = {};
+  for (const [k, day] of Object.entries(value)) {
+    if (!isRealCalendarDate(k)) {
+      console.warn(`Ignoring non-date key in storage: ${k}`);
+      continue;
+    }
+    const clean = sanitizeDay(day);
+    if (clean === null) continue;
+    out[k] = clean;
+  }
+  return trimDays(out);
+}
+
 export function loadAllProgress(): AllProgress {
   const r = readJson(STORAGE_KEY);
-  if (r.found && isPlainObject(r.value)) {
-    const out: AllProgress = {};
-    for (const [k, day] of Object.entries(r.value)) {
-      if (!isRealCalendarDate(k)) {
-        console.warn(`Ignoring non-date key in storage: ${k}`);
-        continue;
-      }
-      const clean = sanitizeDay(day);
-      if (clean === null) continue;
-      out[k] = clean;
-    }
-    return trimDays(out);
+  if (r.found) {
+    const parsed = parseProgress(r.value);
+    if (parsed) return parsed;
+    console.error(`Invalid schema for storage key: ${STORAGE_KEY}`);
   }
-  if (r.found) console.error(`Invalid schema for storage key: ${STORAGE_KEY}`);
 
   // Legacy-міграція: валідуємо тими самими гардами, пишемо крізь safe-функції,
   // legacy-ключ прибираємо завжди (навіть битий — DATA-004).
@@ -188,31 +198,34 @@ export function saveAllProgress(all: AllProgress): void {
   persist(STORAGE_KEY, all);
 }
 
+/** Чистий парсер вимірювань ваги (спільний для localStorage та імпорту бекапу). */
+export function parseWeights(value: unknown): WeightEntry[] | null {
+  if (!Array.isArray(value)) return null;
+  // DATA-001: погані записи дропаємо поштучно; надлишок обрізаємо (перші = новіші).
+  return value
+    .filter(isWeightEntry)
+    .map((w) => ({ ...w, id: String(w.id) }))
+    .slice(0, MAX_WEIGHT_ENTRIES);
+}
+
 export function loadWeights(): WeightEntry[] {
   const r = readJson(WEIGHT_KEY);
-  if (!r.found || !Array.isArray(r.value)) {
-    if (r.found) console.error('Invalid schema for storage key');
-    return [];
-  }
-  // DATA-001: погані записи дропаємо поштучно; надлишок обрізаємо (перші = новіші).
-  const clean = r.value
-    .filter(isWeightEntry)
-    .map((w) => ({ ...w, id: String(w.id) }));
-  return clean.slice(0, MAX_WEIGHT_ENTRIES);
+  if (!r.found) return [];
+  const parsed = parseWeights(r.value);
+  if (parsed) return parsed;
+  console.error('Invalid schema for storage key');
+  return [];
 }
 
 export function saveWeights(weights: WeightEntry[]): void {
   persist(WEIGHT_KEY, weights);
 }
 
-export function loadExWeights(): Record<string, number> {
-  const r = readJson(EX_WEIGHT_KEY);
-  if (!r.found || !isPlainObject(r.value)) {
-    if (r.found) console.error('Invalid schema for storage key');
-    return {};
-  }
+/** Чистий парсер ваг вправ (спільний для localStorage та імпорту бекапу). */
+export function parseExWeights(value: unknown): Record<string, number> | null {
+  if (!isPlainObject(value)) return null;
   const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(r.value)) {
+  for (const [k, v] of Object.entries(value)) {
     if (!KNOWN_KEYS.has(k)) {
       console.warn(`Ignoring unknown exercise key in storage: ${k}`);
       continue;
@@ -221,6 +234,15 @@ export function loadExWeights(): Record<string, number> {
     out[k] = v;
   }
   return out;
+}
+
+export function loadExWeights(): Record<string, number> {
+  const r = readJson(EX_WEIGHT_KEY);
+  if (!r.found) return {};
+  const parsed = parseExWeights(r.value);
+  if (parsed) return parsed;
+  console.error('Invalid schema for storage key');
+  return {};
 }
 
 export function saveExWeights(weights: Record<string, number>): void {

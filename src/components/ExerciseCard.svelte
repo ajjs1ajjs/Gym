@@ -12,6 +12,7 @@
     ontoggle,
     onpromptweight,
     onweight,
+    onstartrest,
   } = $props<{
     exercise: Exercise;
     done: boolean;
@@ -19,6 +20,7 @@
     ontoggle: () => void;
     onpromptweight: () => void;
     onweight: (value: number) => void;
+    onstartrest: () => void;
   }>();
 
   // Allowlisted, base-aware image URL — unknown values fall back to the icon.
@@ -57,18 +59,25 @@
       <div class="ex-badge">{exercise.badge}</div>
     </div>
     <div class="ex-desc">{exercise.desc}</div>
-    {#if exercise.hasWeight}
-      {#if weight !== undefined}
-        <div class="ex-weight">
-          <button class="ew-btn" onclick={() => changeWeight(-2.5)} aria-label="Зменшити вагу">−</button>
-          <span class="ew-val" role="button" tabindex="0" onclick={onpromptweight} onkeydown={onValKeydown}>{weight} кг</span>
-          <button class="ew-btn" onclick={() => changeWeight(2.5)} aria-label="Збільшити вагу">+</button>
-        </div>
-      {:else}
-        <div class="ex-weight">
-          <button class="ew-btn ew-set" onclick={onpromptweight}>+ Вага</button>
-        </div>
-      {/if}
+    {#if exercise.hasWeight || exercise.rest}
+      <div class="ex-weight">
+        {#if exercise.hasWeight}
+          {#if weight !== undefined}
+            <button class="ew-btn" onclick={() => changeWeight(-2.5)} aria-label="Зменшити вагу">−</button>
+            <span class="ew-val" role="button" tabindex="0" onclick={onpromptweight} onkeydown={onValKeydown}>{weight} кг</span>
+            <button class="ew-btn" onclick={() => changeWeight(2.5)} aria-label="Збільшити вагу">+</button>
+          {:else}
+            <button class="ew-btn ew-set" onclick={onpromptweight}>+ Вага</button>
+          {/if}
+        {/if}
+        {#if exercise.rest}
+          <button
+            class="ew-btn ew-set ew-timer"
+            onclick={onstartrest}
+            aria-label="Таймер відпочинку, {exercise.rest} секунд"
+          >⏱ {exercise.rest}с</button>
+        {/if}
+      </div>
     {/if}
   </div>
   <div class="ex-check">

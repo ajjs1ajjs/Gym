@@ -11,6 +11,7 @@
     ontoggle,
     onpromptweight,
     onweight,
+    onstartrest,
   } = $props<{
     block: Block;
     index: number;
@@ -19,6 +20,7 @@
     ontoggle: (key: string) => void;
     onpromptweight: (key: string) => void;
     onweight: (key: string, value: number) => void;
+    onstartrest: (key: string) => void;
   }>();
 
   const ACCENTS: ReadonlySet<string> = new Set(['block-0', 'block-1', 'block-2', 'block-3']);
@@ -66,6 +68,7 @@
         ontoggle={() => ontoggle(ex.key)}
         onpromptweight={() => onpromptweight(ex.key)}
         onweight={(value) => onweight(ex.key, value)}
+        onstartrest={() => onstartrest(ex.key)}
       />
     {/each}
   </div>

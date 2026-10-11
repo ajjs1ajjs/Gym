@@ -734,6 +734,164 @@ header .subtitle {
   padding: 20px;
 }
 
+/* Weight chart (sparkline) */
+.weight-chart {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 10px 12px 8px;
+  margin-bottom: 16px;
+}
+
+.weight-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.sp-line {
+  fill: none;
+  stroke: var(--accent1);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sp-area {
+  fill: rgba(0, 212, 170, 0.12);
+  stroke: none;
+}
+
+.sp-dot {
+  fill: var(--accent1);
+  stroke: var(--surface2);
+  stroke-width: 2;
+}
+
+.sp-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.68rem;
+  color: var(--text2);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* Rest timer */
+.rest-timer {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  width: min(476px, calc(100vw - 24px));
+  background: var(--surface2);
+  border: 1px solid var(--accent1);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 6px 12px;
+  align-items: center;
+  z-index: 120;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+.rt-info {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.rt-label {
+  font-size: 0.72rem;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rt-clock {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent1);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.rt-actions {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  gap: 6px;
+}
+
+.rt-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  min-width: 44px;
+  height: 34px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0 10px;
+}
+
+.rt-btn:hover {
+  border-color: var(--accent1);
+}
+
+.rt-stop {
+  color: var(--text2);
+}
+
+.rt-stop:hover {
+  border-color: var(--accent6);
+  color: var(--accent6);
+}
+
+.rt-bar {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rt-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent1), var(--complete));
+  border-radius: 2px;
+  transition: width 0.25s linear;
+}
+
+.toast.above {
+  bottom: 104px;
+}
+
+/* Import file input */
+.import-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ew-btn.ew-timer {
+  margin-left: auto;
+  color: var(--accent4);
+}
+
+.ew-btn.ew-timer:hover {
+  border-color: var(--accent4);
+}
+
 @media (min-width: 600px) {
   body {
     max-width: 500px;

@@ -20,8 +20,8 @@
   <img src="https://img.shields.io/badge/Svelte-5-orange?logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/TypeScript-typed-blue?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PWA-offline-cyan" alt="PWA">
-  <img src="https://img.shields.io/badge/tests-39%20passing-green" alt="Tests">
-  <img src="https://img.shields.io/badge/bundle-25KB%20gzip-00d4aa" alt="Bundle">
+  <img src="https://img.shields.io/badge/tests-68%20passing-green" alt="Tests">
+  <img src="https://img.shields.io/badge/bundle-30KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
 [**🌐 Live Site**](https://ajjs1ajjs.github.io/dist/gym/)
@@ -41,21 +41,23 @@
 
 ## ✨ Features
 
-- 💪 Ведення планів тренувань
-- 📊 Графіки ваги та зміни тіла
-- 🏋️ Заміри тіла + фото тіла
+- 💪 19 вправ у 4 блоках: сила, інтенсивний фінішер, кор, кардіо
+- ⏱ Таймер відпочинку між підходами (вібрація + сповіщення, +15 с)
+- 📊 Графік ваги (спарклайн) та історія вимірювань зі змінами
+- 🗓 Історія тренувань по днях із відсотком виконання
+- 💾 Бекап: експорт/імпорт усіх даних у JSON
 - 🔒 Офлайн-режим — застосунок працює без інтернету (PWA)
-- 💾 Локальне зберігання даних у `localStorage` (оновлення у v2)
+- 💽 Локальне зберігання даних у `localStorage` з валідацією та карантином пошкоджених даних
 - 📱 Встановлення на телефон та планшет як рідний застосунок
 
 ## Структура тренувань
 
-| День | Фокус |
+| Блок | Фокус |
 |------|-------|
-| **Верхня частина тіла** | Груди, біцепси/трицепси, плечі, спина, жим, тяга |
-| **Нижня частина тіла** | Ноги (3–4×10) |
-| **М'язи для тіла** | Ноги (3×20), ягодиці (3×45–60с) |
-| **Тіло** | Прес та розтяжка (20–30 хв, пульс 110–130) |
+| **Силовий блок** | Ноги, тяга, жими, плечі та руки (3×12–15) |
+| **Інтенсивний фінішер** | Бурпі (3–4×10), скакалка (3×60с) |
+| **Блок для кору** | Прес, підйом ніг, твіст, планка, гіперекстензія (3×12–20) |
+| **Кардіо (Заминка)** | Ходьба з нахилом або велотренажер (15–30 хв, пульс 110–130) |
 
 ## Технології
 
@@ -63,7 +65,7 @@
 - **TypeScript** — повна типізація
 - **Vite** — швидкий білд, максимальна швидкість
 - **vite-plugin-pwa** — автоматичний service worker (precache + cache-first)
-- **Vitest** + **@testing-library/svelte** — 39 тестів
+- **Vitest** + **@testing-library/svelte** — 68 тестів
 - **ESLint** + **svelte-check** — якість коду
 
 ## 🚀 Getting started

@@ -2,6 +2,7 @@
   import { todayStr, formatDate, isUsableDateStr } from '../lib/dates';
   import { computeWeightDiffs } from '../lib/compute';
   import { toWeight } from '../lib/format';
+  import WeightChart from './WeightChart.svelte';
   import type { WeightEntry } from '../lib/compute';
 
   let {
@@ -112,6 +113,10 @@
         </div>
       {/if}
     </div>
+
+    {#if weights.length > 1}
+      <WeightChart {weights} />
+    {/if}
 
     <div class="weight-form">
       <input
