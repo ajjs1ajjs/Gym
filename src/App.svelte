@@ -7,20 +7,22 @@ import WeightSection from './components/WeightSection.svelte';
 import HistorySection from './components/HistorySection.svelte';
 import WeightDialog from './components/WeightDialog.svelte';
 import RestTimer from './components/RestTimer.svelte';
-import { WORKOUT, getAllKeys, getExerciseByKey } from './lib/workout';
+import { WORKOUT, getAllKeys, getExerciseByKey, toSetCount, isExerciseDone } from './lib/workout';
 import {
   loadAllProgress,
   saveAllProgress,
   loadWeights,
   saveWeights,
-  loadExWeights,
-  saveExWeights,
+  loadExWeightHistory,
+  saveExWeightHistory,
   StorageQuotaError,
   STORAGE_KEY,
   WEIGHT_KEY,
-  EX_WEIGHT_KEY,
+  EX_WEIGHT_V2_KEY,
 } from './lib/storage';
 import { createBackup, parseBackup } from './lib/backup';
+import { upsertExWeight, resolveExWeight } from './lib/exweights';
+import type { ExWeightHistory } from './lib/exweights';
 import { todayStr, shiftDate, formatDate, isUsableDateStr } from './lib/dates';
 import { byDateDesc, newWeightId } from './lib/compute';
 import { MIN_WEIGHT, MAX_WEIGHT } from './lib/format';
@@ -35,8 +37,8 @@ interface BeforeInstallPromptEvent extends Event {
 let selectedDate = $state(todayStr());
 let all = $state<AllProgress>(loadAllProgress());
 let weights = $state<WeightEntry[]>(loadWeights());
-let exWeights = $state<Record<string, number>>(loadExWeights());
-let toastMsg = $state('');
+let exHistory = $state<ExWeightHistory>(loadExWeightHistory());
+let toast = $state<{ msg: string; undo?: () => void } | null>(null);
 let dialog = $state<{ key: string; initial: number | null } | null>(null);
 let deferredPrompt = $state<BeforeInstallPromptEvent | null>(null);
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -61,13 +63,25 @@ function isValidEntryWeight(weight: number): boolean {
 }
 
 const progress = $derived(all[selectedDate] ?? {});
-const doneCount = $derived(allKeys.filter((k) => progress[k]).length);
+const doneCount = $derived(allKeys.filter((k) => isExerciseDone(progress[k], k)).length);
 const sortedWeights = $derived([...weights].sort(byDateDesc));
 
-function showToast(msg: string): void {
-  toastMsg = msg;
+function showToast(msg: string, undo?: () => void): void {
+  toast = { msg, undo };
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (toastMsg = ''), 2000);
+  // Дії мають довше вікно, щоб встигнути натиснути «Скасувати».
+  toastTimer = setTimeout(() => (toast = null), undo ? 6000 : 2000);
+}
+
+function dismissToast(): void {
+  clearTimeout(toastTimer);
+  toast = null;
+}
+
+function runUndo(): void {
+  const fn = toast?.undo;
+  dismissToast();
+  fn?.();
 }
 
 function persist(fn: () => void): boolean {
@@ -76,14 +90,14 @@ function persist(fn: () => void): boolean {
   // Копії, а не ті самі референси: інакше Svelte не помітить повернення.
   // uiTick форсує перемонтування блоків: Svelte не пересинхронізує
   // user-toggled чекбокс, якщо стан повернувся до початкового в тому ж циклі.
-  const snap = { all, weights, exWeights };
+  const snap = { all, weights, exHistory };
   try {
     fn();
     return true;
   } catch (e) {
     all = { ...snap.all };
     weights = [...snap.weights];
-    exWeights = { ...snap.exWeights };
+    exHistory = { ...snap.exHistory };
     uiTick += 1;
     if (e instanceof StorageQuotaError) showToast('Помилка збереження: сховище переповнене');
     else throw e;
@@ -94,7 +108,7 @@ function persist(fn: () => void): boolean {
 function reloadFromStorage(): void {
   all = loadAllProgress();
   weights = loadWeights();
-  exWeights = loadExWeights();
+  exHistory = loadExWeightHistory();
 }
 
 function vibrate(pattern: number | number[]): void {
@@ -116,6 +130,36 @@ function requestNotifyPermission(): void {
   }
 }
 
+interface WakeLockSentinelLike {
+  release: () => Promise<void>;
+}
+
+let wakeLock: WakeLockSentinelLike | null = null;
+
+/** Тримає екран увімкненим, поки йде відпочинок (якщо API доступне). */
+async function acquireWakeLock(): Promise<void> {
+  try {
+    const wl = (
+      navigator as Navigator & {
+        wakeLock?: { request: (type: 'screen') => Promise<WakeLockSentinelLike> };
+      }
+    ).wakeLock;
+    if (!wl) return;
+    wakeLock = await wl.request('screen');
+  } catch {
+    /* відмовлено/немає API — не критично */
+  }
+}
+
+function releaseWakeLock(): void {
+  try {
+    void wakeLock?.release();
+  } catch {
+    /* ignore */
+  }
+  wakeLock = null;
+}
+
 function startRest(key: string): void {
   const ex = getExerciseByKey(key);
   const sec = ex?.rest ?? 0;
@@ -125,6 +169,7 @@ function startRest(key: string): void {
   restLabel = ex?.name ?? '';
   vibrate(30);
   requestNotifyPermission();
+  void acquireWakeLock();
 }
 
 function extendRest(extra: number): void {
@@ -135,11 +180,13 @@ function extendRest(extra: number): void {
 
 function stopRest(): void {
   restEndAt = null;
+  releaseWakeLock();
 }
 
 function finishRest(): void {
   const label = restLabel;
   restEndAt = null;
+  releaseWakeLock();
   showToast(label ? `💪 Відпочинок завершено — ${label}` : '💪 Відпочинок завершено');
   vibrate([180, 90, 180]);
   try {
@@ -153,7 +200,7 @@ function finishRest(): void {
 
 function exportData(): void {
   try {
-    const json = createBackup({ progress: all, weights, exWeights });
+    const json = createBackup({ progress: all, weights, exWeights: exHistory });
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -192,16 +239,16 @@ async function importData(e: Event): Promise<void> {
     return;
   }
   const hasData =
-    Object.keys(all).length > 0 || weights.length > 0 || Object.keys(exWeights).length > 0;
+    Object.keys(all).length > 0 || weights.length > 0 || Object.keys(exHistory).length > 0;
   if (hasData && !confirm('Замінити всі поточні дані імпортованими?')) return;
   const data = parsed.data;
   const saved = persist(() => {
     saveAllProgress(data.progress);
     saveWeights(data.weights);
-    saveExWeights(data.exWeights);
+    saveExWeightHistory(data.exWeights);
     all = data.progress;
     weights = data.weights;
-    exWeights = data.exWeights;
+    exHistory = data.exWeights;
   });
   if (saved) {
     const days = Object.keys(data.progress).length;
@@ -209,12 +256,15 @@ async function importData(e: Event): Promise<void> {
   }
 }
 
-  function toggleExercise(key: string): void {
+  /** Записати кількість виконаних підходів (0 — прибрати відмітку). */
+  function setSets(key: string, count: number): void {
     if (!isKnownKey(key)) return;
+    const target = getExerciseByKey(key)?.sets ?? 1;
+    const n = Math.max(0, Math.min(target, Math.floor(count)));
     const cur = all[selectedDate] ?? {};
     const next = { ...cur };
-    if (next[key]) delete next[key];
-    else next[key] = true;
+    if (n > 0) next[key] = n;
+    else delete next[key];
     persist(() => {
       if (Object.keys(next).length > 0) all = { ...all, [selectedDate]: next };
       else {
@@ -226,18 +276,25 @@ async function importData(e: Event): Promise<void> {
     });
   }
 
+  /** Чекбокс: «все виконано» / «зняти все» (сумісність зі старим UX). */
+  function toggleExercise(key: string): void {
+    if (!isKnownKey(key)) return;
+    const target = getExerciseByKey(key)?.sets ?? 1;
+    const done = toSetCount(all[selectedDate]?.[key], key) >= target;
+    setSets(key, done ? 0 : target);
+  }
+
   function setExWeight(key: string, value: number): void {
     if (!isKnownKey(key) || !isValidEntryWeight(value)) return;
     persist(() => {
-      const next = { ...exWeights };
-      next[key] = value;
-      exWeights = next;
-      saveExWeights(next);
+      exHistory = upsertExWeight(exHistory, key, selectedDate, value);
+      saveExWeightHistory(exHistory);
     });
   }
 
   function openWeightPrompt(key: string): void {
-    dialog = { key, initial: exWeights[key] ?? null };
+    const view = resolveExWeight(exHistory, key, selectedDate);
+    dialog = { key, initial: view.current };
   }
 
   function closeWeightPrompt(value: number | null): void {
@@ -260,19 +317,27 @@ async function importData(e: Event): Promise<void> {
   }
 
   function resetProgress(): void {
-    const label = selectedDate === todayStr() ? 'сьогодні' : formatDate(selectedDate);
-    if (!confirm(`Скинути прогрес на ${label}?`)) return;
-    const rest = { ...all };
-    delete rest[selectedDate];
-    try {
-      persist(() => saveAllProgress(rest));
-      all = rest;
-    } catch (_e /* eslint-disable-line @typescript-eslint/no-unused-vars */) {
-      showToast('Помилка скидання прогресу');
+    const date = selectedDate;
+    const day = all[date];
+    if (!day || Object.keys(day).length === 0) {
+      showToast('На цей день немає прогресу');
       return;
     }
+    const label = date === todayStr() ? 'сьогодні' : formatDate(date);
+    const rest = { ...all };
+    delete rest[date];
+    const saved = persist(() => {
+      saveAllProgress(rest);
+      all = rest;
+    });
+    if (!saved) return;
     // LOGIC-003: лишаємось на скинутому дні (раніше стрибало на сьогодні).
-    showToast('Прогрес скинуто');
+    showToast(`Прогрес скинуто (${label})`, () => {
+      persist(() => {
+        all = { ...all, [date]: day };
+        saveAllProgress(all);
+      });
+    });
   }
 
   function addWeight(weight: number, date: string): void {
@@ -324,10 +389,21 @@ async function importData(e: Event): Promise<void> {
   }
 
   function deleteWeight(id: string): void {
-    if (!confirm('Видалити запис?')) return;
+    const idx = weights.findIndex((w) => w.id === id);
+    if (idx < 0) return;
+    const entry = weights[idx] as WeightEntry;
     persist(() => {
       weights = weights.filter((w) => w.id !== id);
       saveWeights(weights);
+    });
+    showToast('Запис видалено', () => {
+      persist(() => {
+        const insertIdx = weights.findIndex((w) => w.date < entry.date);
+        weights = insertIdx >= 0
+          ? [...weights.slice(0, insertIdx), entry, ...weights.slice(insertIdx)]
+          : [...weights, entry];
+        saveWeights(weights);
+      });
     });
   }
 
@@ -349,8 +425,11 @@ async function importData(e: Event): Promise<void> {
       showToast('Дякуємо за встановлення!');
     };
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY || e.key === WEIGHT_KEY || e.key === EX_WEIGHT_KEY) {
-        // Note: storage event fires after the write, so version should be updated
+      if (
+        e.key === STORAGE_KEY ||
+        e.key === WEIGHT_KEY ||
+        e.key === EX_WEIGHT_V2_KEY
+      ) {
         reloadFromStorage();
       }
     };
@@ -362,6 +441,7 @@ async function importData(e: Event): Promise<void> {
     window.addEventListener('appinstalled', onInstalled);
     window.addEventListener('storage', onStorage);
     return () => {
+      releaseWakeLock();
       window.removeEventListener('app-error', onAppError);
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onInstalled);
@@ -381,11 +461,13 @@ async function importData(e: Event): Promise<void> {
       block={block}
       index={i}
       progress={progress}
-      exWeights={exWeights}
+      exHistory={exHistory}
+      date={selectedDate}
       ontoggle={toggleExercise}
       onpromptweight={openWeightPrompt}
       onweight={setExWeight}
       onstartrest={startRest}
+      onsetsets={setSets}
     />
   {/each}
   {/key}
@@ -428,4 +510,11 @@ async function importData(e: Event): Promise<void> {
   ondone={finishRest}
 />
 
-<div class="toast" class:show={toastMsg !== ''} class:above={restEndAt !== null}>{toastMsg}</div>
+{#if toast}
+  <div class="toast show" class:above={restEndAt !== null} role="status">
+    <span>{toast.msg}</span>
+    {#if toast.undo}
+      <button class="toast-undo" id="toast-undo" onclick={runUndo}>Скасувати</button>
+    {/if}
+  </div>
+{/if}

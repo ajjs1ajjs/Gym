@@ -1,7 +1,7 @@
 <script lang="ts">
   import { formatDate, isValidDateEntry, isRealCalendarDate } from '../lib/dates';
   import { progressPct } from '../lib/compute';
-  import { getAllKeys } from '../lib/workout';
+  import { getAllKeys, isExerciseDone } from '../lib/workout';
   import type { AllProgress } from '../lib/storage';
 
   let {
@@ -49,7 +49,7 @@
     {:else}
       {#each dates as d (d)}
         {@const progress = all[d] ?? {}}
-        {@const done = allKeys.filter((k) => progress[k]).length}
+        {@const done = allKeys.filter((k) => isExerciseDone(progress[k], k)).length}
         {@const pct = progressPct(done, total)}
         {@const isSel = d === selectedDate}
         <div

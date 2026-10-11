@@ -5,6 +5,8 @@ export interface Exercise {
   desc: string;
   key: string;
   hasWeight?: boolean;
+  /** Кількість підходів (ціль). 1 — проста відмітка «зроблено» (кардіо). */
+  sets: number;
   /** Відпочинок між підходами, сек. Відсутній — таймер не показується (напр. кардіо). */
   rest?: number;
 }
@@ -32,6 +34,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'leg-press',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Присідання з гантеллю',
@@ -41,6 +44,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'goblet-squat',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Згинання/розгинання ніг',
@@ -50,6 +54,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'leg-curl',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Тяга верхнього блоку до грудей',
@@ -59,6 +64,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'lat-pulldown',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Тяга нижнього блоку до пояса',
@@ -68,6 +74,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'seated-row',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Жим сидячи на груди',
@@ -77,6 +84,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'chest-press',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Розведення рук у тренажері',
@@ -86,6 +94,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'pec-deck',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Махи гантелями в сторони',
@@ -95,6 +104,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'lateral-raise',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Згинання на біцепс',
@@ -104,6 +114,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'biceps-curl',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
       {
         name: 'Розгинання на трицепс',
@@ -113,6 +124,7 @@ export const WORKOUT: WorkoutBlock[] = [
         key: 'triceps-pushdown',
         hasWeight: true,
         rest: 90,
+        sets: 3,
       },
     ],
   },
@@ -129,6 +141,7 @@ export const WORKOUT: WorkoutBlock[] = [
         desc: 'Відпочинок 45–60 сек між підходами. З упором лежачи, стрибок угору з бавовною.',
         key: 'burpee',
         rest: 60,
+        sets: 3,
       },
       {
         name: 'Скакалка',
@@ -137,6 +150,7 @@ export const WORKOUT: WorkoutBlock[] = [
         desc: 'Рівномірний темп, стрибки низькі. Відпочинок 45 сек між підходами.',
         key: 'jump-rope',
         rest: 45,
+        sets: 3,
       },
     ],
   },
@@ -153,6 +167,7 @@ export const WORKOUT: WorkoutBlock[] = [
         desc: 'На килимку або в тренажері. Скручуй корпус, поперек притиснута до підлоги.',
         key: 'crunch',
         rest: 60,
+        sets: 3,
       },
       {
         name: 'Підйом ніг у висі',
@@ -161,6 +176,7 @@ export const WORKOUT: WorkoutBlock[] = [
         desc: 'Вис на перекладині. Піднімай прямі або зігнуті ноги до рівня таза, без розгойдування.',
         key: 'leg-raise',
         rest: 60,
+        sets: 3,
       },
       {
         name: 'Російський твіст',
@@ -169,6 +185,7 @@ export const WORKOUT: WorkoutBlock[] = [
         desc: 'Сидячи, корпус трохи назад. Обертай корпус із м’ячем або диском у сторони.',
         key: 'russian-twist',
         rest: 45,
+        sets: 3,
       },
       {
         name: 'Планка',
@@ -177,6 +194,7 @@ export const WORKOUT: WorkoutBlock[] = [
         desc: 'Тіло — пряма лінія. Не прогинай поперек. Тримай прес і сідниці напруженими.',
         key: 'plank',
         rest: 60,
+        sets: 3,
       },
       {
         name: 'Гіперекстензія',
@@ -185,6 +203,7 @@ export const WORKOUT: WorkoutBlock[] = [
         desc: 'На лаві для гіперекстензій. Підйом до прямої лінії, без перерозгинання в попереку.',
         key: 'back-extension',
         rest: 60,
+        sets: 3,
       },
     ],
   },
@@ -200,6 +219,7 @@ export const WORKOUT: WorkoutBlock[] = [
         img: 'images/treadmill.svg',
         desc: 'Швидкість 5–5.5 км/год, нахил 10–12%. Тривалість 20–30 хвилин. Пульс у жироспалювальній зоні.',
         key: 'treadmill',
+        sets: 1,
       },
       {
         name: 'Велотренажер',
@@ -207,6 +227,7 @@ export const WORKOUT: WorkoutBlock[] = [
         img: 'images/bike.svg',
         desc: 'Рівний темп, середній опір. Тримай пульс у жироспалювальній зоні.',
         key: 'bike',
+        sets: 1,
       },
     ],
   },
@@ -228,4 +249,25 @@ const EXERCISES_BY_KEY: ReadonlyMap<string, Exercise> = new Map(
 
 export function getExerciseByKey(key: string): Exercise | undefined {
   return EXERCISES_BY_KEY.get(key);
+}
+
+export function exerciseSets(key: string): number {
+  return EXERCISES_BY_KEY.get(key)?.sets ?? 1;
+}
+
+/**
+ * Нормалізує збережене значення підходів.
+ * `true` — сумісність зі старим boolean-форматом (уся вправа виконана).
+ */
+export function toSetCount(value: unknown, key: string): number {
+  const target = exerciseSets(key);
+  if (value === true) return target;
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return Math.min(value, target);
+  }
+  return 0;
+}
+
+export function isExerciseDone(value: unknown, key: string): boolean {
+  return toSetCount(value, key) >= exerciseSets(key);
 }

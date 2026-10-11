@@ -8,6 +8,7 @@ import { createBackup } from '../src/lib/backup';
 
 const V2 = 'gym-tracker-progress-v2';
 const WEIGHTS = 'gym-tracker-weights';
+const EX_WEIGHTS_V2 = 'gym-tracker-ex-weights-v2';
 
 const TOTAL = 19;
 
@@ -27,7 +28,7 @@ describe('App', () => {
     expect(screen.getByText('Ходьба з нахилом')).toBeInTheDocument();
   });
 
-  it('toggles exercise and persists to localStorage', async () => {
+  it('toggles exercise via checkbox and persists full set count', async () => {
     render(App);
     const cb = document.getElementById('cb-leg-press') as HTMLInputElement;
     expect(cb).toBeTruthy();
@@ -35,14 +36,38 @@ describe('App', () => {
     await tick();
 
     const all = JSON.parse(localStorage.getItem(V2) ?? '{}');
-    expect(all[todayStr()]).toHaveProperty('leg-press', true);
+    expect(all[todayStr()]).toHaveProperty('leg-press', 3);
     expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+  });
+
+  it('marks partial sets via dots and completes by checkbox', async () => {
+    render(App);
+    const card = document.querySelector('.exercise') as HTMLElement; // leg-press
+    const dots = card.querySelectorAll('.set-dot');
+    expect(dots).toHaveLength(3);
+    (dots[0] as HTMLButtonElement).click();
+    await tick();
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toHaveProperty('leg-press', 1);
+    // Частково — ще не зараховано у прогрес дня.
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`0/${TOTAL}`);
+    expect(card.classList.contains('partial')).toBe(true);
+    (dots[1] as HTMLButtonElement).click();
+    await tick();
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toHaveProperty('leg-press', 2);
+    (dots[2] as HTMLButtonElement).click();
+    await tick();
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toHaveProperty('leg-press', 3);
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+    // Повторний тап по заповненій крапці знімає її (2 з 3).
+    (dots[2] as HTMLButtonElement).click();
+    await tick();
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toHaveProperty('leg-press', 2);
   });
 
   it('untoggles exercise and removes from storage', async () => {
     localStorage.setItem(
       V2,
-      JSON.stringify({ [todayStr()]: { 'leg-press': true, burpee: true } }),
+      JSON.stringify({ [todayStr()]: { 'leg-press': 3, burpee: 3 } }),
     );
     render(App);
     const cb = document.getElementById('cb-leg-press') as HTMLInputElement;
@@ -52,6 +77,16 @@ describe('App', () => {
     const all = JSON.parse(localStorage.getItem(V2) ?? '{}');
     expect(all[todayStr()]).not.toHaveProperty('leg-press');
     expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+  });
+
+  it('shows the last recorded exercise weight as a hint', () => {
+    localStorage.setItem(
+      EX_WEIGHTS_V2,
+      JSON.stringify({ 'leg-press': [{ date: shiftDate(todayStr(), -3), weight: 120 }] }),
+    );
+    render(App);
+    expect(document.body.textContent).toContain('120 кг');
+    expect(document.body.textContent).toContain('останнє: 120 кг');
   });
 
   it('starts a rest timer from an exercise and can stop it', async () => {
@@ -70,7 +105,7 @@ describe('App', () => {
   });
 
   it('exports a backup file', async () => {
-    localStorage.setItem(V2, JSON.stringify({ [todayStr()]: { burpee: true } }));
+    localStorage.setItem(V2, JSON.stringify({ [todayStr()]: { burpee: 3 } }));
     render(App);
     const createSpy = vi.fn(() => 'blob:mock');
     const revokeSpy = vi.fn();
@@ -94,9 +129,9 @@ describe('App', () => {
 
   it('imports a backup and replaces the state', async () => {
     const backup = createBackup({
-      progress: { [todayStr()]: { burpee: true } },
+      progress: { [todayStr()]: { burpee: 3 } },
       weights: [{ id: 'w-1', date: todayStr(), weight: 80 }],
-      exWeights: { 'leg-press': 100 },
+      exWeights: { 'leg-press': [{ date: todayStr(), weight: 100 }] },
     });
     render(App);
     const input = document.getElementById('import-file') as HTMLInputElement;
@@ -108,7 +143,7 @@ describe('App', () => {
       expect(document.querySelector('.weight-entry')).not.toBeNull();
     });
     expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
-    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toHaveProperty('burpee', true);
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toHaveProperty('burpee', 3);
     expect(JSON.parse(localStorage.getItem(WEIGHTS) ?? '[]')).toHaveLength(1);
     // 100 кг підтягнулось у поле ваги вправи.
     expect(document.body.textContent).toContain('100 кг');
@@ -124,6 +159,46 @@ describe('App', () => {
     await vi.waitFor(() => {
       expect(document.querySelector('.toast')?.textContent).toContain('коректним JSON');
     });
+  });
+});
+
+describe('App undo flows', () => {
+  it('deletes a weight entry and can undo it', async () => {
+    localStorage.setItem(
+      WEIGHTS,
+      JSON.stringify([{ id: 'w1', date: todayStr(), weight: 80 }]),
+    );
+    render(App);
+    expect(document.querySelectorAll('.weight-entry')).toHaveLength(1);
+    (document.querySelector('.w-btn-del') as HTMLButtonElement).click();
+    await tick();
+    expect(document.querySelectorAll('.weight-entry')).toHaveLength(0);
+    expect(document.querySelector('.toast')?.textContent).toContain('видалено');
+    (document.getElementById('toast-undo') as HTMLButtonElement).click();
+    await tick();
+    expect(document.querySelectorAll('.weight-entry')).toHaveLength(1);
+    expect(JSON.parse(localStorage.getItem(WEIGHTS) ?? '[]')).toHaveLength(1);
+  });
+
+  it('resets progress and can undo it', async () => {
+    localStorage.setItem(V2, JSON.stringify({ [todayStr()]: { burpee: 3 } }));
+    render(App);
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+    (document.getElementById('btn-reset') as HTMLButtonElement).click();
+    await tick();
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`0/${TOTAL}`);
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toBeUndefined();
+    (document.getElementById('toast-undo') as HTMLButtonElement).click();
+    await tick();
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+    expect(JSON.parse(localStorage.getItem(V2) ?? '{}')[todayStr()]).toEqual({ burpee: 3 });
+  });
+
+  it('shows a toast when there is nothing to reset', async () => {
+    render(App);
+    (document.getElementById('btn-reset') as HTMLButtonElement).click();
+    await tick();
+    expect(document.querySelector('.toast')?.textContent).toContain('немає прогресу');
   });
 });
 

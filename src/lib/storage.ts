@@ -1,9 +1,11 @@
 import { todayStr, isRealCalendarDate } from './dates';
 import type { WeightEntry } from './compute';
-import { getAllKeys } from './workout';
+import type { ExWeightHistory, ExWeightPoint } from './exweights';
+import { getAllKeys, toSetCount } from './workout';
 import { MIN_WEIGHT, MAX_WEIGHT } from './format';
 
-export type DayProgress = Record<string, boolean>;
+/** День: ключ вправи → кількість виконаних підходів (старий формат boolean приймається). */
+export type DayProgress = Record<string, number>;
 export type AllProgress = Record<string, DayProgress>;
 
 export class StorageQuotaError extends Error {
@@ -16,10 +18,12 @@ export class StorageQuotaError extends Error {
 const STORAGE_KEY = 'gym-tracker-progress-v2';
 const WEIGHT_KEY = 'gym-tracker-weights';
 const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
+const EX_WEIGHT_V2_KEY = 'gym-tracker-ex-weights-v2';
 const LEGACY_KEY = 'gym-tracker-progress';
 
 const MAX_DAYS = 3700; // ~10 years of daily history
 const MAX_WEIGHT_ENTRIES = 5000;
+const MAX_EX_POINTS = 500; // історія на одну вправу
 
 const KNOWN_KEYS: ReadonlySet<string> = new Set(getAllKeys());
 
@@ -40,7 +44,8 @@ function isWeightEntry(w: unknown): w is WeightEntry {
     e.weight >= MIN_WEIGHT && e.weight <= MAX_WEIGHT;
 }
 
-/** День: невідомі ключі (видалені вправи) відкидаємо з warn; хибний тип = битий день. */
+/** День: невідомі ключі (видалені вправи) відкидаємо з warn;
+ *  значення — підходи (число) або старий boolean; 0/сміття → ключ дропається. */
 function sanitizeDay(day: unknown): DayProgress | null {
   if (typeof day !== 'object' || day === null || Array.isArray(day)) return null;
   const clean: DayProgress = {};
@@ -49,10 +54,10 @@ function sanitizeDay(day: unknown): DayProgress | null {
       console.warn(`Ignoring unknown exercise key in storage: ${k}`);
       continue;
     }
-    if (typeof v !== 'boolean') return null;
-    clean[k] = v;
+    const sets = toSetCount(v, k);
+    if (sets > 0) clean[k] = sets;
   }
-  return clean;
+  return Object.keys(clean).length > 0 ? clean : null;
 }
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
@@ -174,11 +179,13 @@ export function loadAllProgress(): AllProgress {
         if (Object.keys(out).length > 0) migrated = trimDays(out);
       } else if (
         Object.keys(p).length <= KNOWN_KEYS.size &&
-        Object.values(p).every((val) => typeof val === 'boolean')
+        Object.values(p).every((val) => typeof val === 'boolean' || typeof val === 'number')
       ) {
         const day: DayProgress = {};
         for (const [k, val] of Object.entries(p)) {
-          if (KNOWN_KEYS.has(k) && typeof val === 'boolean') day[k] = val;
+          if (!KNOWN_KEYS.has(k)) continue;
+          const sets = toSetCount(val, k);
+          if (sets > 0) day[k] = sets;
         }
         if (Object.keys(day).length > 0) migrated = { [todayStr()]: day };
       }
@@ -249,6 +256,77 @@ export function saveExWeights(weights: Record<string, number>): void {
   persist(EX_WEIGHT_KEY, weights);
 }
 
+function isExWeightPoint(v: unknown): v is ExWeightPoint {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return false;
+  const keys = Object.keys(v);
+  if (keys.length !== 2 || !('date' in v && 'weight' in v)) return false;
+  const e = v as { date: unknown; weight: unknown };
+  return (
+    typeof e.date === 'string' &&
+    isRealCalendarDate(e.date) &&
+    typeof e.weight === 'number' &&
+    Number.isFinite(e.weight) &&
+    e.weight >= MIN_WEIGHT &&
+    e.weight <= MAX_WEIGHT
+  );
+}
+
+/** Чистий парсер історії ваг вправ: одна точка на дату, хронологічно, з обрізкою. */
+export function parseExWeightHistory(value: unknown): ExWeightHistory | null {
+  if (!isPlainObject(value)) return null;
+  const out: ExWeightHistory = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (!KNOWN_KEYS.has(k)) {
+      console.warn(`Ignoring unknown exercise key in storage: ${k}`);
+      continue;
+    }
+    if (!Array.isArray(v)) continue;
+    const byDate = new Map<string, ExWeightPoint>();
+    for (const point of v) {
+      if (!isExWeightPoint(point)) continue;
+      byDate.set(point.date, { date: point.date, weight: point.weight });
+    }
+    const clean = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+    if (clean.length > 0) out[k] = clean.slice(-MAX_EX_POINTS);
+  }
+  return out;
+}
+
+/** Історія ваг вправ із міграцією зі старого формату (map key→number, без дат). */
+export function loadExWeightHistory(): ExWeightHistory {
+  const r = readJson(EX_WEIGHT_V2_KEY);
+  if (r.found) {
+    const parsed = parseExWeightHistory(r.value);
+    if (parsed) return parsed;
+    console.error(`Invalid schema for storage key: ${EX_WEIGHT_V2_KEY}`);
+    return {};
+  }
+  // Міграція: стара вага без дати — фіксуємо сьогоднішнім днем.
+  // Старий ключ НЕ видаляємо: відкат на попередню версію збереже дані.
+  const old = readJson(EX_WEIGHT_KEY);
+  if (old.found) {
+    const map = parseExWeights(old.value);
+    if (map && Object.keys(map).length > 0) {
+      const today = todayStr();
+      const migrated: ExWeightHistory = {};
+      for (const [k, weight] of Object.entries(map)) {
+        migrated[k] = [{ date: today, weight }];
+      }
+      try {
+        persist(EX_WEIGHT_V2_KEY, migrated);
+      } catch {
+        /* квота: лишаємо в пам'яті, наступний save спробує ще раз */
+      }
+      return migrated;
+    }
+  }
+  return {};
+}
+
+export function saveExWeightHistory(history: ExWeightHistory): void {
+  persist(EX_WEIGHT_V2_KEY, history);
+}
+
 function isQuotaError(e: unknown): boolean {
   // DATA-005: Chrome/Safari QuotaExceededError + Firefox NS_ERROR_DOM_QUOTA_REACHED
   // (приватний режим) + застарілий код 22.
@@ -267,4 +345,4 @@ function persist(key: string, value: unknown): void {
   }
 }
 
-export { STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_KEY, LEGACY_KEY };
+export { STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_KEY, EX_WEIGHT_V2_KEY, LEGACY_KEY };

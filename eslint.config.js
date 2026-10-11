@@ -5,7 +5,7 @@ import tseslint from 'typescript-eslint';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules']),
+  globalIgnores(['dist', 'node_modules', 'playwright-report', 'test-results', '.lighthouseci']),
   {
     files: ['**/*.{ts,svelte}'],
     extends: [

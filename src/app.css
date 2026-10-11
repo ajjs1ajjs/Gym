@@ -324,6 +324,49 @@ header .subtitle {
   opacity: 0.65;
 }
 
+.exercise.partial {
+  border-color: var(--accent4);
+}
+
+/* Set dots */
+.ex-sets {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.set-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+.set-dot:hover {
+  border-color: var(--accent1);
+}
+
+.set-dot:focus-visible {
+  outline: 2px solid var(--accent1);
+  outline-offset: 2px;
+}
+
+.set-dot.filled {
+  background: var(--complete);
+  border-color: var(--complete);
+}
+
+.ex-hint {
+  font-size: 0.7rem;
+  color: var(--text2);
+  margin-top: 4px;
+}
+
 .exercise.done .ex-name {
   text-decoration: line-through;
   color: var(--text2);
@@ -541,10 +584,38 @@ header .subtitle {
   pointer-events: none;
   z-index: 100;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: toast-in 0.2s ease forwards;
 }
 
 .toast.show {
   opacity: 1;
+}
+
+.toast-undo {
+  pointer-events: auto;
+  background: none;
+  border: 1px solid var(--accent1);
+  color: var(--accent1);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toast-undo:hover {
+  background: var(--accent1);
+  color: #000;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 /* Weight dialog */

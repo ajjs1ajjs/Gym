@@ -20,8 +20,8 @@
   <img src="https://img.shields.io/badge/Svelte-5-orange?logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/TypeScript-typed-blue?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PWA-offline-cyan" alt="PWA">
-  <img src="https://img.shields.io/badge/tests-68%20passing-green" alt="Tests">
-  <img src="https://img.shields.io/badge/bundle-30KB%20gzip-00d4aa" alt="Bundle">
+  <img src="https://img.shields.io/badge/tests-95%20passing-green" alt="Tests">
+  <img src="https://img.shields.io/badge/bundle-31KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
 [**🌐 Live Site**](https://ajjs1ajjs.github.io/dist/gym/)
@@ -42,10 +42,12 @@
 ## ✨ Features
 
 - 💪 19 вправ у 4 блоках: сила, інтенсивний фінішер, кор, кардіо
-- ⏱ Таймер відпочинку між підходами (вібрація + сповіщення, +15 с)
+- ✅ Облік підходів (крапки 3×) і вага кожної вправи з історією («перед цим: 60 кг»)
+- ⏱ Таймер відпочинку між підходами (вібрація + сповіщення, +15 с, Wake Lock)
 - 📊 Графік ваги (спарклайн) та історія вимірювань зі змінами
 - 🗓 Історія тренувань по днях із відсотком виконання
-- 💾 Бекап: експорт/імпорт усіх даних у JSON
+- ↩️ Undo: видалення вимірювання чи скидання прогресу можна скасувати тостом
+- 💾 Бекап: експорт/імпорт усіх даних у JSON (з підтримкою старих бекапів)
 - 🔒 Офлайн-режим — застосунок працює без інтернету (PWA)
 - 💽 Локальне зберігання даних у `localStorage` з валідацією та карантином пошкоджених даних
 - 📱 Встановлення на телефон та планшет як рідний застосунок
@@ -65,7 +67,9 @@
 - **TypeScript** — повна типізація
 - **Vite** — швидкий білд, максимальна швидкість
 - **vite-plugin-pwa** — автоматичний service worker (precache + cache-first)
-- **Vitest** + **@testing-library/svelte** — 68 тестів
+- **Vitest** + **@testing-library/svelte** — 95 юніт/компонентних тестів
+- **Playwright** — 7 E2E-сценаріїв (PWA-білд у Chromium)
+- **Lighthouse CI** — аудит Performance/A11y/Best-practices (ручний воркфлоу **Quality**)
 - **ESLint** + **svelte-check** — якість коду
 
 ## 🚀 Getting started
@@ -78,7 +82,9 @@
 ```bash
 npm ci             # встановлення залежностей із lockfile
 npm run dev        # dev-сервер (Vite, http://localhost:5173)
-npm test           # тести
+npm test           # юніт/компонентні тести (Vitest)
+npm run test:e2e   # E2E-тести (Playwright; спершу збирає dist/)
+npm run test:lighthouse  # Lighthouse-аудит (потрібен встановлений Chrome)
 npm run check      # type-check (svelte-check)
 npm run lint       # eslint
 npm run build      # продакшн-білд у dist/

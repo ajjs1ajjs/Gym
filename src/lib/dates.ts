@@ -47,10 +47,16 @@ export function formatDateLabel(str: string): string {
   });
 }
 
-export function isValidDateEntry(p: unknown): p is Record<string, boolean> {
+export function isValidDateEntry(p: unknown): p is Record<string, boolean | number> {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return false;
   const keys = Object.keys(p);
-  return keys.length > 0 && keys.every((k) => typeof (p as Record<string, unknown>)[k] === 'boolean');
+  return (
+    keys.length > 0 &&
+    keys.every((k) => {
+      const v = (p as Record<string, unknown>)[k];
+      return typeof v === 'boolean' || (typeof v === 'number' && Number.isInteger(v) && v > 0);
+    })
+  );
 }
 
 /** Strict `YYYY-MM-DD` shape + real calendar date (rejects 2024-02-30 etc). */

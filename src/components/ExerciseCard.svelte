@@ -7,21 +7,30 @@
 
   let {
     exercise,
-    done,
+    completed,
     weight,
+    weightHint,
     ontoggle,
     onpromptweight,
     onweight,
     onstartrest,
+    onsetsets,
   } = $props<{
     exercise: Exercise;
-    done: boolean;
+    /** Виконано підходів (0..sets). */
+    completed: number;
     weight?: number;
+    weightHint?: string | null;
     ontoggle: () => void;
     onpromptweight: () => void;
     onweight: (value: number) => void;
     onstartrest: () => void;
+    onsetsets: (count: number) => void;
   }>();
+
+  const isDone = $derived(completed >= exercise.sets);
+  const isPartial = $derived(completed > 0 && !isDone);
+  const setIndexes = $derived(Array.from({ length: exercise.sets }, (_, i) => i + 1));
 
   // Allowlisted, base-aware image URL — unknown values fall back to the icon.
   const safeImg = $derived(
@@ -49,9 +58,14 @@
       onpromptweight();
     }
   }
+
+  function toggleSet(n: number): void {
+    // Тап по вже заповненій крапці знімає її; інакше — заповнює до неї.
+    onsetsets(completed >= n ? n - 1 : n);
+  }
 </script>
 
-<div class="exercise" class:done={done}>
+<div class="exercise" class:done={isDone} class:partial={isPartial}>
   <div class="ex-thumb"><img src={safeImg} alt={exercise.name} loading="lazy" onerror={onImgError} /></div>
   <div class="ex-info">
     <div class="ex-info-top">
@@ -59,6 +73,20 @@
       <div class="ex-badge">{exercise.badge}</div>
     </div>
     <div class="ex-desc">{exercise.desc}</div>
+    {#if exercise.sets > 1}
+      <div class="ex-sets" role="group" aria-label="Підходи: {completed} з {exercise.sets}">
+        {#each setIndexes as n (n)}
+          <button
+            type="button"
+            class="set-dot"
+            class:filled={n <= completed}
+            aria-label="Підхід {n} з {exercise.sets}"
+            aria-pressed={n <= completed}
+            onclick={() => toggleSet(n)}
+          ></button>
+        {/each}
+      </div>
+    {/if}
     {#if exercise.hasWeight || exercise.rest}
       <div class="ex-weight">
         {#if exercise.hasWeight}
@@ -79,9 +107,12 @@
         {/if}
       </div>
     {/if}
+    {#if weightHint}
+      <div class="ex-hint">{weightHint}</div>
+    {/if}
   </div>
   <div class="ex-check">
-    <input type="checkbox" id="cb-{exercise.key}" checked={done} onchange={ontoggle} />
-    <label for="cb-{exercise.key}">✓</label>
+    <input type="checkbox" id="cb-{exercise.key}" checked={isDone} onchange={ontoggle} />
+    <label for="cb-{exercise.key}" aria-label="Позначити всі підходи">✓</label>
   </div>
 </div>

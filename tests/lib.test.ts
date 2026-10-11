@@ -10,6 +10,7 @@ import {
 } from '../src/lib/dates';
 import { toWeight } from '../src/lib/format';
 import { computeWeightDiffs, progressPct, newWeightId, buildSparkline } from '../src/lib/compute';
+import { toSetCount, isExerciseDone, exerciseSets, getExerciseByKey } from '../src/lib/workout';
 import type { WeightEntry } from '../src/lib/compute';
 
 describe('localDateStr', () => {
@@ -190,18 +191,53 @@ describe('isRealCalendarDate / isUsableDateStr', () => {
 });
 
 describe('isValidDateEntry', () => {
-  it('accepts a non-empty object of booleans', () => {
+  it('accepts a non-empty object of booleans or positive set counts', () => {
     expect(isValidDateEntry({ 'squat': true, 'bench': false })).toBe(true);
+    expect(isValidDateEntry({ 'leg-press': 2 })).toBe(true);
   });
 
-  it('rejects arrays, dates and non-boolean values', () => {
+  it('rejects arrays, dates and non-boolean/non-count values', () => {
     expect(isValidDateEntry([])).toBe(false);
     expect(isValidDateEntry(new Date())).toBe(false);
-    expect(isValidDateEntry({ 'leg-press': 42 })).toBe(false);
+    expect(isValidDateEntry({ 'leg-press': 0 })).toBe(false);
+    expect(isValidDateEntry({ 'leg-press': -1 })).toBe(false);
+    expect(isValidDateEntry({ 'leg-press': 2.5 })).toBe(false);
     expect(isValidDateEntry({ 'squat': 'yes' })).toBe(false);
     expect(isValidDateEntry({})).toBe(false);
     expect(isValidDateEntry(null)).toBe(false);
     expect(isValidDateEntry(undefined)).toBe(false);
     expect(isValidDateEntry(42)).toBe(false);
+  });
+});
+
+describe('set counts (workout helpers)', () => {
+  it('maps boolean legacy values to the full target', () => {
+    expect(toSetCount(true, 'leg-press')).toBe(3);
+    expect(toSetCount(true, 'treadmill')).toBe(1);
+    expect(toSetCount(false, 'leg-press')).toBe(0);
+  });
+
+  it('clamps numbers to the target and rejects junk', () => {
+    expect(toSetCount(2, 'leg-press')).toBe(2);
+    expect(toSetCount(99, 'leg-press')).toBe(3);
+    expect(toSetCount(-1, 'leg-press')).toBe(0);
+    expect(toSetCount(2.5, 'leg-press')).toBe(0);
+    expect(toSetCount('2', 'leg-press')).toBe(0);
+    expect(toSetCount(undefined, 'leg-press')).toBe(0);
+  });
+
+  it('isExerciseDone accepts raw stored values', () => {
+    expect(isExerciseDone(3, 'leg-press')).toBe(true);
+    expect(isExerciseDone(2, 'leg-press')).toBe(false);
+    expect(isExerciseDone(true, 'plank')).toBe(true);
+    expect(isExerciseDone(1, 'treadmill')).toBe(true);
+  });
+
+  it('exposes targets from the workout data', () => {
+    expect(exerciseSets('leg-press')).toBe(3);
+    expect(exerciseSets('treadmill')).toBe(1);
+    expect(exerciseSets('unknown-key')).toBe(1);
+    expect(getExerciseByKey('bike')?.sets).toBe(1);
+    expect(getExerciseByKey('nope')).toBeUndefined();
   });
 });
