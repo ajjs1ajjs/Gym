@@ -493,6 +493,7 @@ async function importData(e: Event): Promise<void> {
     id="import-file"
     class="import-input"
     accept=".json,application/json"
+    aria-label="Імпортувати файл бекапу"
     bind:this={importInput}
     onchange={importData}
   />

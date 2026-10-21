@@ -1,6 +1,20 @@
 # Changelog
 
-## [Unreleased] - 2026-10-01
+## [3.6.1] - 2026-10-21
+
+### Security
+- **Supply chain**: Оновлено `vite` до `8.3.5` та `vitest` до `5.0.5`, закрито вразливість High ([GHSA-698v-4r3x-3vcv](https://github.com/advisories/GHSA-698v-4r3x-3vcv), Windows launch-editor command execution). Повний аудит `npm audit` — 0 вразливостей.
+
+### Fixed
+- **Accessibility (WCAG 2.5.3)**: Узгоджено доступне ім'я (`aria-label`) для кнопок таймера вправ із видимим текстом (`⏱ Xс`).
+- **Accessibility (Forms)**: Додано `aria-label="Імпортувати файл бекапу"` для прихованого файлового інпуту.
+- **Accessibility (Progress)**: Додано семантику `role="progressbar"` з `aria-valuenow`, `aria-valuemin`, `aria-valuemax` до заголовка прогресу.
+- **SEO**: Додано `<meta name="description">` до `index.html` (Lighthouse SEO 100%, A11y 96%).
+- **Theme color**: Виправлено `theme-color` в `index.html` та `manifest.json` з `#ff6b6b` на `#0f0f1a` під темну тему додатку.
+- **E2E Tests**: Усунено флакі-таймаут анімації в тесті `undoes a weight deletion` (`reducedMotion: 'reduce'`, `workers: 2`).
+- **Compatibility**: Оновлено `engines.node` на `>=22` у `package.json`.
+
+## [3.6.0] - 2026-10-15
 
 ### Added
 
@@ -11,7 +25,7 @@
   виконані вправи.
 - **Історія ваг вправ**: вага зберігається по днях у новому ключі
   `gym-tracker-ex-weights-v2` (одна точка на дату); під вагою видно підказку
-  «перед цим / останнє: X кг · дата». Стара мапа мігрує при першому читанні,
+  «перед цим / остання: X кг · дата». Стара мапа мігрує при першому читанні,
   старий ключ лишається (безпечний відкат).
 - **Undo замість `confirm()`**: видалення вимірювання та скидання прогресу
   виконуються миттєво, тост із кнопкою «Скасувати» (6 с) повертає стан.
@@ -69,7 +83,7 @@
 - **Input**: `toWeight` strict decimal shape + `0.5–999` domain; central `isRealCalendarDate`/`isUsableDateStr` guards on all date entries (picker, form, history, add/update); progress bars clamped via `progressPct`.
 - **IDs**: `crypto.randomUUID()` entry ids (ms-timestamp collisions fixed).
 - **Components**: image `src` allowlist + base-aware URLs + error fallback; accent allowlist; index-based block ids; min/max via seeded reduce (no spread-DoS); date `max` attrs aligned with domain.
-- **CSP**: `object-src 'none'`, `base-uri/form-action/worker/manifest-src 'self'`; emoji data-URI favicon replaced by `icon.svg` (dropped `img-src data:`); theme colors aligned; `apple-touch-icon` added; manifest `id` + SVG `purpose: any`.
+- **CSP**: `object-src 'none'`, `base-uri/form-action/worker/manifest-src 'self'`; emoji data-URI favicon replaced by `icon.svg` (dropped `img-src data:`); theme colors aligned; `apple-touch-icon` added; manifest `id` + SVG `purpose: any`!.
 - **PWA**: `navigateFallback: /Gym/index.html` (base-aware); Vitest config split to `vitest.config.ts`.
 - **Supply chain**: exact dep pins + synced lock (`npm audit fix` cleared the high `fast-uri`; 2 moderate dev-only `vitest` remain upstream); `engines: 22.x` + `packageManager`; Dependabot (npm + actions); `npm audit` gate in CI.
 - **CI**: least-privilege permissions, SHA-pinned actions (incl. peaceiris `v4.1.0` @ `84c30a8`), `ubuntu-24.04`, timeouts, `npm run check`; deferred-release derives version from `package.json` + `--ff-only`.
@@ -109,7 +123,7 @@
 
 ### Змінено
 
-- **Storage**: експортувані константи ключів (`STORAGE_KEY`, `WEIGHT_KEY`, `EX_WEIGHT_KEY`) для cross-tab sync
+- **Storage**: експортовані константи ключів (`STORAGE_KEY`, `WEIGHT_KEY`, `EX_WEIGHT_KEY`) для cross-tab sync
 
 ## [3.2.1] - 2026-09-08
 

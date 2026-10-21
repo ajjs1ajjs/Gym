@@ -102,7 +102,7 @@
           <button
             class="ew-btn ew-set ew-timer"
             onclick={onstartrest}
-            aria-label="Таймер відпочинку, {exercise.rest} секунд"
+            aria-label="⏱ {exercise.rest}с — таймер відпочинку, {exercise.rest} секунд"
           >⏱ {exercise.rest}с</button>
         {/if}
       </div>
