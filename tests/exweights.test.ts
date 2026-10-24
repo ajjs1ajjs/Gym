@@ -52,6 +52,15 @@ describe('resolveExWeight', () => {
     expect(view.current).toBe(120);
     expect(view.previous).toEqual({ date: '2024-01-01', weight: 115 });
   });
+
+  it('does not show a future exercise weight on a past date', () => {
+    expect(resolveExWeight(H, 'leg-press', '2023-12-31')).toEqual({
+      current: null,
+      currentDate: null,
+      previous: null,
+    });
+    expect(resolveExWeight(H, 'leg-press', '2024-01-10').current).toBe(120);
+  });
 });
 
 describe('upsertExWeight', () => {

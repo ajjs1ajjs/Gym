@@ -21,10 +21,6 @@ const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
 const EX_WEIGHT_V2_KEY = 'gym-tracker-ex-weights-v2';
 const LEGACY_KEY = 'gym-tracker-progress';
 
-const MAX_DAYS = 3700; // ~10 years of daily history
-const MAX_WEIGHT_ENTRIES = 5000;
-const MAX_EX_POINTS = 500; // історія на одну вправу
-
 const KNOWN_KEYS: ReadonlySet<string> = new Set(getAllKeys());
 
 function isWeightId(v: unknown): v is string | number {
@@ -105,17 +101,6 @@ function readJson(key: string): { found: true; value: unknown } | { found: false
   }
 }
 
-function trimDays(all: AllProgress): AllProgress {
-  const keys = Object.keys(all).sort();
-  if (keys.length <= MAX_DAYS) return all;
-  const keep = new Set(keys.slice(keys.length - MAX_DAYS));
-  const out: AllProgress = {};
-  for (const [k, v] of Object.entries(all)) {
-    if (keep.has(k)) out[k] = v;
-  }
-  return out;
-}
-
 function safeSetItem(key: string, value: string): boolean {
   try {
     localStorage.setItem(key, value);
@@ -149,7 +134,7 @@ export function parseProgress(value: unknown): AllProgress | null {
     if (clean === null) continue;
     out[k] = clean;
   }
-  return trimDays(out);
+  return out;
 }
 
 export function loadAllProgress(): AllProgress {
@@ -160,11 +145,9 @@ export function loadAllProgress(): AllProgress {
     console.error(`Invalid schema for storage key: ${STORAGE_KEY}`);
   }
 
-  // Legacy-міграція: валідуємо тими самими гардами, пишемо крізь safe-функції,
-  // legacy-ключ прибираємо завжди (навіть битий — DATA-004).
+  // Legacy-міграція: source лишається до успішного запису нової версії.
   const old = readJson(LEGACY_KEY);
-  try {
-    if (old.found && isPlainObject(old.value)) {
+  if (old.found && isPlainObject(old.value)) {
       const p = old.value;
       const hasDateKeys = Object.keys(p).some((k) => isRealCalendarDate(k));
       let migrated: AllProgress | null = null;
@@ -176,7 +159,7 @@ export function loadAllProgress(): AllProgress {
           if (clean === null) continue;
           out[k] = clean;
         }
-        if (Object.keys(out).length > 0) migrated = trimDays(out);
+        if (Object.keys(out).length > 0) migrated = out;
       } else if (
         Object.keys(p).length <= KNOWN_KEYS.size &&
         Object.values(p).every((val) => typeof val === 'boolean' || typeof val === 'number')
@@ -190,15 +173,42 @@ export function loadAllProgress(): AllProgress {
         if (Object.keys(day).length > 0) migrated = { [todayStr()]: day };
       }
       if (migrated) {
-        if (safeSetItem(STORAGE_KEY, JSON.stringify(migrated))) return migrated;
-        return {};
+        if (safeSetItem(STORAGE_KEY, JSON.stringify(migrated))) {
+          safeRemoveItem(LEGACY_KEY);
+          return migrated;
+        }
+        return migrated;
       }
+      // Невалідне/порожнє джерело можна прибрати лише після явного розбору.
+      // Зберігаємо його, аби подальше відновлення або стара версія не втратили дані.
       return {};
-    }
-  } finally {
-    safeRemoveItem(LEGACY_KEY);
   }
   return {};
+}
+
+/** Замінює всі набори даних як одну логічну операцію з rollback при помилці. */
+export function replaceAllData(data: {
+  progress: AllProgress;
+  weights: WeightEntry[];
+  exWeights: ExWeightHistory;
+}): void {
+  const keys = [STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_V2_KEY] as const;
+  const previous = keys.map((key) => localStorage.getItem(key));
+  try {
+    persist(STORAGE_KEY, data.progress);
+    persist(WEIGHT_KEY, data.weights);
+    persist(EX_WEIGHT_V2_KEY, data.exWeights);
+  } catch (error) {
+    // Free partial writes first, then restore the exact previous values.
+    for (const key of keys) {
+      try { localStorage.removeItem(key); } catch { /* best effort */ }
+    }
+    keys.forEach((key, i) => {
+      const value = previous[i];
+      if (value !== null && value !== undefined) localStorage.setItem(key, value);
+    });
+    throw error;
+  }
 }
 
 export function saveAllProgress(all: AllProgress): void {
@@ -208,11 +218,10 @@ export function saveAllProgress(all: AllProgress): void {
 /** Чистий парсер вимірювань ваги (спільний для localStorage та імпорту бекапу). */
 export function parseWeights(value: unknown): WeightEntry[] | null {
   if (!Array.isArray(value)) return null;
-  // DATA-001: погані записи дропаємо поштучно; надлишок обрізаємо (перші = новіші).
+  // Погані записи дропаємо поштучно; дійсну історію не обрізаємо.
   return value
     .filter(isWeightEntry)
-    .map((w) => ({ ...w, id: String(w.id) }))
-    .slice(0, MAX_WEIGHT_ENTRIES);
+    .map((w) => ({ ...w, id: String(w.id) }));
 }
 
 export function loadWeights(): WeightEntry[] {
@@ -287,7 +296,7 @@ export function parseExWeightHistory(value: unknown): ExWeightHistory | null {
       byDate.set(point.date, { date: point.date, weight: point.weight });
     }
     const clean = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-    if (clean.length > 0) out[k] = clean.slice(-MAX_EX_POINTS);
+    if (clean.length > 0) out[k] = clean;
   }
   return out;
 }

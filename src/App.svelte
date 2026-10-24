@@ -15,6 +15,7 @@ import {
   saveWeights,
   loadExWeightHistory,
   saveExWeightHistory,
+  replaceAllData,
   StorageQuotaError,
   STORAGE_KEY,
   WEIGHT_KEY,
@@ -226,6 +227,10 @@ async function importData(e: Event): Promise<void> {
   const file = input?.files?.[0];
   if (input) input.value = ''; // повторний вибір того самого файла
   if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showToast('Файл бекапу завеликий (максимум 10 МБ)');
+    return;
+  }
   let text: string;
   try {
     text = await file.text();
@@ -238,14 +243,15 @@ async function importData(e: Event): Promise<void> {
     showToast(parsed.error);
     return;
   }
+  if (parsed.discarded > 0 && !confirm(
+    `У бекапі є пошкоджені або зайві записи. Буде пропущено: ${parsed.discarded}. Продовжити з відновленням решти?`,
+  )) return;
   const hasData =
     Object.keys(all).length > 0 || weights.length > 0 || Object.keys(exHistory).length > 0;
   if (hasData && !confirm('Замінити всі поточні дані імпортованими?')) return;
   const data = parsed.data;
   const saved = persist(() => {
-    saveAllProgress(data.progress);
-    saveWeights(data.weights);
-    saveExWeightHistory(data.exWeights);
+    replaceAllData(data);
     all = data.progress;
     weights = data.weights;
     exHistory = data.exWeights;

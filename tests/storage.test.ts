@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   loadAllProgress,
   saveAllProgress,
@@ -8,6 +8,8 @@ import {
   saveExWeights,
   loadExWeightHistory,
   saveExWeightHistory,
+  replaceAllData,
+  StorageQuotaError,
 } from '../src/lib/storage';
 import { todayStr } from '../src/lib/dates';
 
@@ -70,9 +72,59 @@ describe('loadAllProgress', () => {
     expect(localStorage.getItem(LEGACY)).toBeNull();
   });
 
+  it('keeps legacy data when writing the migrated key fails', () => {
+    const legacy = JSON.stringify({ 'leg-press': true });
+    localStorage.setItem(LEGACY, legacy);
+    const original = Storage.prototype.setItem;
+    let failed = false;
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === V2 && !failed) {
+        failed = true;
+        throw new DOMException('quota', 'QuotaExceededError');
+      }
+      original.call(this, key, value);
+    });
+    try {
+      expect(loadAllProgress()).toEqual({ [todayStr()]: { 'leg-press': 3 } });
+      expect(localStorage.getItem(LEGACY)).toBe(legacy);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('falls back to empty on corrupt JSON', () => {
     localStorage.setItem(V2, '{corrupt');
     expect(loadAllProgress()).toEqual({});
+  });
+});
+
+describe('replaceAllData', () => {
+  it('restores all previous keys when an import write fails', () => {
+    const before = {
+      [V2]: JSON.stringify({ '2026-01-01': { burpee: 1 } }),
+      [WEIGHTS]: JSON.stringify([{ id: 'old', date: '2026-01-01', weight: 80 }]),
+      [EX_WEIGHTS_V2]: JSON.stringify({ burpee: [{ date: '2026-01-01', weight: 10 }] }),
+    };
+    for (const [key, value] of Object.entries(before)) localStorage.setItem(key, value);
+    const original = Storage.prototype.setItem;
+    let failed = false;
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === WEIGHTS && !failed) {
+        failed = true;
+        throw new DOMException('quota', 'QuotaExceededError');
+      }
+      original.call(this, key, value);
+    });
+    try {
+      expect(() => replaceAllData({
+        progress: { '2026-02-01': { plank: 1 } },
+        weights: [{ id: 'new', date: '2026-02-01', weight: 70 }],
+        exWeights: { plank: [{ date: '2026-02-01', weight: 5 }] },
+      })).toThrow(StorageQuotaError);
+      for (const [key, value] of Object.entries(before)) expect(localStorage.getItem(key)).toBe(value);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
@@ -203,7 +255,7 @@ describe('exercise weight history storage', () => {
     expect(loadAllProgress()).toEqual({ [todayStr()]: { 'leg-press': 3 } });
   });
 
-  it('trims days beyond the limit instead of wiping everything', () => {
+  it('preserves histories longer than the former retention limit', () => {
     const data: Record<string, { 'leg-press': boolean }> = {};
     let firstKey = '';
     let lastKey = '';
@@ -216,10 +268,22 @@ describe('exercise weight history storage', () => {
     }
     localStorage.setItem(V2, JSON.stringify(data));
     const loaded = loadAllProgress();
-    expect(Object.keys(loaded)).toHaveLength(3700);
-    // Newest days survive, oldest are trimmed.
+    expect(Object.keys(loaded)).toHaveLength(3705);
+    // The oldest records remain available and are not silently discarded.
     expect(loaded[lastKey]).toEqual({ 'leg-press': 3 });
-    expect(loaded[firstKey]).toBeUndefined();
+    expect(loaded[firstKey]).toEqual({ 'leg-press': 3 });
+  });
+
+  it('preserves more than 500 exercise weight points', () => {
+    const points = Array.from({ length: 505 }, (_, i) => {
+      const date = new Date(2000, 0, 1 + i);
+      return {
+        date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
+        weight: 100 + (i % 10),
+      };
+    });
+    localStorage.setItem(EX_WEIGHTS_V2, JSON.stringify({ 'leg-press': points }));
+    expect(loadExWeightHistory()['leg-press']).toHaveLength(505);
   });
 
   it('quarantines unparseable JSON instead of losing it silently', () => {

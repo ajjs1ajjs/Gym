@@ -8,6 +8,7 @@ import type { AllProgress } from './storage';
 import type { WeightEntry } from './compute';
 import type { ExWeightHistory } from './exweights';
 import { todayStr, isRealCalendarDate } from './dates';
+import { exerciseSets, getAllKeys } from './workout';
 
 /**
  * Бекап усього стану застосунку одним JSON-файлом.
@@ -44,8 +45,64 @@ export function createBackup(data: BackupData, now: Date = new Date()): string {
 }
 
 export type BackupParseResult =
-  | { ok: true; data: BackupData }
+  | { ok: true; data: BackupData; discarded: number }
   | { ok: false; error: string };
+
+const knownExerciseKeys = new Set(getAllKeys());
+
+function countDiscarded(data: Record<string, unknown>, parsed: BackupData): number {
+  let count = 0;
+  const progress = data.progress;
+  if (typeof progress === 'object' && progress !== null && !Array.isArray(progress)) {
+    for (const [date, day] of Object.entries(progress)) {
+      if (!isRealCalendarDate(date) || typeof day !== 'object' || day === null || Array.isArray(day)) {
+        count++;
+        continue;
+      }
+      const clean = parsed.progress[date];
+      for (const [key, value] of Object.entries(day)) {
+        if (!knownExerciseKeys.has(key)) { count++; continue; }
+        const target = exerciseSets(key);
+        const valid = value === true || (typeof value === 'number' && Number.isInteger(value) && value > 0);
+        if (!valid || (typeof value === 'number' && value > target)) count++;
+        else if (!clean || clean[key] === undefined) count++;
+      }
+    }
+  }
+  const rawWeights = data.weights;
+  if (Array.isArray(rawWeights)) count += Math.max(0, rawWeights.length - parsed.weights.length);
+
+  const rawHistory = data.exWeights;
+  if (typeof rawHistory === 'object' && rawHistory !== null && !Array.isArray(rawHistory)) {
+    for (const [key, value] of Object.entries(rawHistory)) {
+      if (!knownExerciseKeys.has(key)) { count++; continue; }
+      // v1 stored a single current value per exercise rather than dated points.
+      if (typeof value === 'number') {
+        if (!Number.isFinite(value) || value < 0.5 || value > 999) count++;
+        continue;
+      }
+      if (!Array.isArray(value)) { count++; continue; }
+      const seen = new Set<string>();
+      let validUnique = 0;
+      for (const point of value) {
+        if (typeof point !== 'object' || point === null || Array.isArray(point)) { count++; continue; }
+        const p = point as { date?: unknown; weight?: unknown };
+        if (Object.keys(point).length !== 2 || typeof p.date !== 'string' || !isRealCalendarDate(p.date) ||
+          typeof p.weight !== 'number' || !Number.isFinite(p.weight) || p.weight < 0.5 || p.weight > 999) {
+          count++;
+        } else if (seen.has(p.date)) {
+          count++;
+        } else {
+          seen.add(p.date);
+          validUnique++;
+        }
+      }
+      const cleanLength = parsed.exWeights[key]?.length ?? 0;
+      count += Math.max(0, validUnique - cleanLength);
+    }
+  }
+  return count;
+}
 
 function migrateV1ExWeights(value: unknown, exportedAt: unknown): ExWeightHistory | null {
   const map = parseExWeights(value);
@@ -93,5 +150,6 @@ export function parseBackup(text: string): BackupParseResult {
   if (progress === null || weights === null || exWeights === null) {
     return { ok: false, error: 'Пошкоджений бекап: невірна структура даних' };
   }
-  return { ok: true, data: { progress, weights, exWeights } };
+  const parsedData = { progress, weights, exWeights };
+  return { ok: true, data: parsedData, discarded: countDiscarded(data, parsedData) };
 }

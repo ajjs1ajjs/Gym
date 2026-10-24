@@ -147,10 +147,10 @@ jobs:
           TAG: ${{ steps.ver.outputs.tag }}
         run: |
           set -euo pipefail
-          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.env.NEXT;fs.writeFileSync(p,JSON.stringify(j,null,2)+'\n');"
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const l=JSON.parse(fs.readFileSync('package-lock.json','utf8'));p.version=process.env.NEXT;l.version=process.env.NEXT;if(l.packages&&l.packages[''])l.packages[''].version=process.env.NEXT;fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');fs.writeFileSync('package-lock.json',JSON.stringify(l,null,2)+'\n');"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json
+          git add package.json package-lock.json
           if git diff --cached --quiet; then echo "no changes"; exit 0; fi
           git commit -m "chore(release): $TAG [skip ci]"
           git push

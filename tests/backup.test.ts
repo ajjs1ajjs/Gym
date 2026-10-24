@@ -18,6 +18,7 @@ describe('createBackup / parseBackup (v2)', () => {
     const parsed = parseBackup(json);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
+      expect(parsed.discarded).toBe(0);
       expect(parsed.data.progress).toEqual(sampleData().progress);
       expect(parsed.data.weights).toEqual(sampleData().weights);
       expect(parsed.data.exWeights).toEqual(sampleData().exWeights);
@@ -84,6 +85,7 @@ describe('createBackup / parseBackup (v2)', () => {
     const parsed = parseBackup(json);
     expect(parsed.ok).toBe(true);
     if (parsed.ok) {
+      expect(parsed.discarded).toBeGreaterThan(0);
       expect(Object.keys(parsed.data.progress)).toEqual([day]);
       expect(parsed.data.progress[day]).toEqual({ 'leg-press': 3, burpee: 3 });
       expect(parsed.data.weights).toEqual([{ id: 'keep', date: day, weight: 80 }]);

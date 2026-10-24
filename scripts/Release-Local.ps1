@@ -41,6 +41,10 @@ $dist = $tags | Where-Object { $_ -match $pattern } | ForEach-Object { $_ -repla
 if (-not $dist) { $dist = '0.0.0' }
 if ($Version) {
   $next = $Version
+} elseif ([version]$dist -gt [version]$pkg) {
+  # Resume a release whose site was already published but whose source bump
+  # did not finish. The published version is the intended target.
+  $next = $dist
 } else {
   $base = @($pkg, $dist) | Sort-Object { [version]$_ } | Select-Object -Last 1
   $v = [version]$base
@@ -83,19 +87,27 @@ try {
   git config user.name 'local-release'
   git config user.email 'local-release@localhost'
   git add -A gym
-  if (git diff --cached --quiet) {
-    Write-Host 'No site changes to publish — no tag, no bump. Done.'
+  git diff --cached --quiet
+  $siteChanged = ($LASTEXITCODE -ne 0)
+  if (-not $siteChanged) {
+    $expectedSubject = "chore(gym): publish site build ($tag)"
+    $lastSubject = git log -1 --format=%s
+    if ($lastSubject -ne $expectedSubject) {
+      Write-Host 'No site changes to publish — no tag, no bump. Done.'
+      Pop-Location
+      exit 0
+    }
+    Write-Host "Site commit for $tag already exists; resuming release metadata."
+  } else {
+    if (-not $Force) {
+      $ans = Read-Host "Publish site build ($tag)? [y/N]"
+      if ($ans -ne 'y' -and $ans -ne 'Y') { Pop-Location; Write-Host 'aborted'; exit 0 }
+    }
+    git commit -m "chore(gym): publish site build ($tag)"
+    git push origin HEAD:main
     Pop-Location
-    exit 0
+    Write-Host "Published $tag build."
   }
-  if (-not $Force) {
-    $ans = Read-Host "Publish site build ($tag)? [y/N]"
-    if ($ans -ne 'y' -and $ans -ne 'Y') { Pop-Location; Write-Host 'aborted'; exit 0 }
-  }
-  git commit -m "chore(gym): publish site build ($tag)"
-  git push origin HEAD:main
-  Pop-Location
-  Write-Host "Published $tag build."
 } finally {
   if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
 }
@@ -126,8 +138,8 @@ if (-not $tagExists) {
 }
 
 # --- 5. Бамп версії ------------------------------------------------------------
-node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('package.json','utf8'));j.version='$next';fs.writeFileSync('package.json',JSON.stringify(j,null,2)+'\n');"
-git add package.json
+node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));const l=JSON.parse(fs.readFileSync('package-lock.json','utf8'));p.version='$next';l.version='$next';if(l.packages&&l.packages[''])l.packages[''].version='$next';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n');fs.writeFileSync('package-lock.json',JSON.stringify(l,null,2)+'\n');"
+git add package.json package-lock.json
 if (git diff --cached --quiet) { Write-Host 'no changes'; exit 0 }
 git commit -m "chore(release): $tag [skip ci]"
 git push

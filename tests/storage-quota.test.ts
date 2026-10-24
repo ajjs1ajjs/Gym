@@ -1,42 +1,20 @@
-import { describe, expect, beforeEach } from 'vitest';
-import { StorageQuotaError } from '../src/lib/storage';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { saveAllProgress, StorageQuotaError } from '../src/lib/storage';
 
-describe('Storage quota error handling', () => {
-    beforeEach(() => {
-        // Clear localStorage before each test
-        localStorage.clear();
+beforeEach(() => localStorage.clear());
+
+describe('storage quota failures', () => {
+  it('surfaces an actual quota failure from localStorage writes', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage) {
+      throw new DOMException('quota', 'QuotaExceededError');
     });
 
-    test('StorageQuotaError is thrown when quota exceeded', () => {
-        // Mock localStorage.setItem to simulate quota exceeded
-        const originalSetItem = localStorage.setItem;
-        let callCount = 0;
-
-        localStorage.setItem = function (key: string, value: string): void {
-            callCount++;
-            // Simulate quota exceeded after 3 calls
-            if (callCount >= 3) {
-                throw new DOMException('QuotaExceededError', 'QuotaExceededError');
-            }
-            return originalSetItem.call(localStorage, key, value);
-        };
-
-        // We can't dynamically import in test, so test the pattern differently
-        // Just verify the error class exists and can be thrown
-        expect(() => {
-            try {
-                throw new StorageQuotaError();
-            } catch (e) {
-                if (e instanceof StorageQuotaError) {
-                    throw e;
-                }
-            }
-        }).toThrow(StorageQuotaError);
-    });
-
-    test('StorageQuotaError class is properly defined', () => {
-        const error = new StorageQuotaError();
-        expect(error.name).toBe('StorageQuotaError');
-        expect(error.message).toBe('Storage quota exceeded');
-    });
+    try {
+      expect(() => saveAllProgress({ '2026-01-01': { 'leg-press': 1 } }))
+        .toThrow(StorageQuotaError);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(localStorage.length).toBe(0);
+  });
 });

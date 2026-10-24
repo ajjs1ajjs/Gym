@@ -32,22 +32,17 @@ export function resolveExWeight(
   date: string,
 ): ExWeightView {
   const list = [...(history[key] ?? [])].sort(byDateAsc);
-  const exactIdx = list.findIndex((p) => p.date === date);
-  if (exactIdx >= 0) {
-    const exact = list[exactIdx] as ExWeightPoint;
+  const applicable = list.filter((p) => p.date <= date);
+  const applicableIdx = applicable.length - 1;
+  if (applicableIdx >= 0) {
+    const exact = applicable[applicableIdx] as ExWeightPoint;
     return {
       current: exact.weight,
       currentDate: exact.date,
-      previous: exactIdx > 0 ? (list[exactIdx - 1] as ExWeightPoint) : null,
+      previous: applicableIdx > 0 ? (applicable[applicableIdx - 1] as ExWeightPoint) : null,
     };
   }
-  const last = list.length > 0 ? (list[list.length - 1] as ExWeightPoint) : null;
-  if (!last) return { current: null, currentDate: null, previous: null };
-  return {
-    current: last.weight,
-    currentDate: last.date,
-    previous: list.length > 1 ? (list[list.length - 2] as ExWeightPoint) : null,
-  };
+  return { current: null, currentDate: null, previous: null };
 }
 
 /** Записати вагу на дату (одна точка на дату — перезапис, як у ваги тіла). */
