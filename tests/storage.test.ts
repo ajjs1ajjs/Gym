@@ -10,6 +10,10 @@ import {
   saveExWeightHistory,
   replaceAllData,
   StorageQuotaError,
+  StorageRecoveryError,
+  getStorageProblems,
+  recoverImport,
+  parseWeights,
 } from '../src/lib/storage';
 import { todayStr } from '../src/lib/dates';
 
@@ -99,6 +103,23 @@ describe('loadAllProgress', () => {
 });
 
 describe('replaceAllData', () => {
+  it('keeps a recovery journal if rollback fails and restores on the next attempt', () => {
+    localStorage.setItem(V2, '{"2026-01-01":{"burpee":1}}');
+    localStorage.setItem(WEIGHTS, '[]');
+    const original = Storage.prototype.setItem;
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key, value) {
+      if (key === WEIGHTS) throw new DOMException('quota', 'QuotaExceededError');
+      original.call(this, key, value);
+    });
+    try {
+      expect(() => replaceAllData({ progress: {}, weights: [], exWeights: {} })).toThrow();
+      expect(localStorage.getItem('gym-tracker-import-journal')).not.toBeNull();
+      expect(() => saveAllProgress({})).toThrow(StorageRecoveryError);
+    } finally { spy.mockRestore(); }
+    expect(recoverImport()).toBe(true);
+    expect(loadAllProgress()).toEqual({ '2026-01-01': { burpee: 1 } });
+    expect(localStorage.getItem('gym-tracker-import-journal')).toBeNull();
+  });
   it('restores all previous keys when an import write fails', () => {
     const before = {
       [V2]: JSON.stringify({ '2026-01-01': { burpee: 1 } }),
@@ -137,6 +158,22 @@ describe('saveAllProgress', () => {
 });
 
 describe('weights storage', () => {
+  it('keeps the first valid record for each unique id and date', () => {
+    expect(parseWeights([
+      { id: 'a', date: '2024-01-01', weight: 80 },
+      { id: 'a', date: '2024-01-02', weight: 81 },
+      { id: 'b', date: '2024-01-01', weight: 82 },
+    ])).toEqual([{ id: 'a', date: '2024-01-01', weight: 80 }]);
+  });
+
+  it('protects corrupt and wrong-schema values from overwrites', () => {
+    for (const raw of ['{bad', '[]']) {
+      localStorage.setItem(V2, raw);
+      expect(getStorageProblems()[V2]).toBe(raw);
+      expect(() => saveAllProgress({})).toThrow(StorageRecoveryError);
+      expect(localStorage.getItem(V2)).toBe(raw);
+    }
+  });
   it('round-trips weight entries', () => {
     const entries = [{ id: 'abc-123', date: '2024-01-01', weight: 80.5 }];
     saveWeights(entries);

@@ -12,8 +12,8 @@
     ondelete,
   } = $props<{
     weights: WeightEntry[];
-    onadd: (weight: number, date: string) => void;
-    onupdate: (id: string, weight: number, date: string) => void;
+    onadd: (weight: number, date: string) => boolean;
+    onupdate: (id: string, weight: number, date: string) => boolean;
     ondelete: (id: string) => void;
   }>();
 
@@ -42,10 +42,10 @@
     }
     error = '';
     if (editId !== null) {
-      onupdate(editId, weight, wDate);
+      if (!onupdate(editId, weight, wDate)) return;
       editId = null;
     } else {
-      onadd(weight, wDate);
+      if (!onadd(weight, wDate)) return;
     }
     wInput = '';
     // LOGIC-003: обраний день не скидаємо (раніше втрачався після кожного додавання).

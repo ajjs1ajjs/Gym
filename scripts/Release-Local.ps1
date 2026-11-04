@@ -106,12 +106,22 @@ try {
       if ($ans -ne 'y' -and $ans -ne 'Y') { Pop-Location; Write-Host 'aborted'; exit 0 }
     }
     git commit -m "chore(gym): publish site build ($tag)"
+    if ($LASTEXITCODE -ne 0) { Fail 'dist commit failed' }
     git push origin HEAD:main
+    if ($LASTEXITCODE -ne 0) { Fail 'dist push failed' }
     Pop-Location
     Write-Host "Published $tag build."
   }
 } finally {
-  if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+  if (Test-Path -LiteralPath $tmp) {
+    $resolvedTemp = (Resolve-Path -LiteralPath $tmp).Path
+    $tempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+    if (-not $resolvedTemp.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        -not (Split-Path -Leaf $resolvedTemp).StartsWith('dist-gym-')) {
+      throw "Refusing to remove unexpected release directory: $resolvedTemp"
+    }
+    Remove-Item -LiteralPath $resolvedTemp -Recurse -Force
+  }
 }
 
 # --- 4. Тег релізу ------------------------------------------------------------
@@ -144,5 +154,7 @@ node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json
 git add package.json package-lock.json
 if (git diff --cached --quiet) { Write-Host 'no changes'; exit 0 }
 git commit -m "chore(release): $tag [skip ci]"
+if ($LASTEXITCODE -ne 0) { Fail 'source version commit failed' }
 git push
+if ($LASTEXITCODE -ne 0) { Fail 'source version push failed' }
 Write-Host "Released $tag"

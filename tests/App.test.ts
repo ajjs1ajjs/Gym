@@ -163,6 +163,17 @@ describe('App', () => {
 });
 
 describe('App undo flows', () => {
+  it('does not claim deletion succeeded when storage is full', async () => {
+    localStorage.setItem(WEIGHTS, JSON.stringify([{ id: 'w1', date: todayStr(), weight: 80 }]));
+    render(App);
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new DOMException('quota', 'QuotaExceededError'); });
+    try {
+      (document.querySelector('.w-btn-del') as HTMLButtonElement).click();
+      await tick();
+      expect(document.querySelectorAll('.weight-entry')).toHaveLength(1);
+      expect(document.querySelector('.toast')?.textContent).toContain('сховище переповнене');
+    } finally { spy.mockRestore(); }
+  });
   it('deletes a weight entry and can undo it', async () => {
     localStorage.setItem(
       WEIGHTS,

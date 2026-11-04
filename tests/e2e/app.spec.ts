@@ -62,6 +62,22 @@ test('exports a backup file', async ({ page }) => {
   expect(download.suggestedFilename()).toMatch(/^gym-tracker-\d{4}-\d{2}-\d{2}\.json$/);
 });
 
+test('imports a backup and persists its data after reload', async ({ page }) => {
+  const backup = {
+    app: 'gym-tracker', v: 2, exportedAt: new Date().toISOString(),
+    data: { progress: { '2024-01-01': { 'leg-press': 3 } }, weights: [{ id: 'w1', date: '2024-01-01', weight: 80 }], exWeights: {} },
+  };
+  await page.locator('#import-file').evaluate((input: HTMLInputElement, data) => {
+    const files = new DataTransfer();
+    files.items.add(new File([JSON.stringify(data)], 'backup.json', { type: 'application/json' }));
+    input.files = files.files;
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, backup);
+  await expect(page.locator('.weight-entry')).toHaveCount(1);
+  await page.reload();
+  await expect(page.locator('.weight-entry')).toContainText('80 кг');
+});
+
 test('undoes a weight deletion', async ({ page }) => {
   await page.locator('#w-input').fill('80');
   await page.locator('#w-add').click();

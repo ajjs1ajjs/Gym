@@ -969,3 +969,13 @@ header .subtitle {
     margin: 0 auto;
   }
 }
+.storage-warning {
+  margin: 1rem;
+  padding: 1rem;
+  border: 1px solid #e4a740;
+  border-radius: 0.75rem;
+  background: #3b2c16;
+  color: #fff;
+}
+
+.storage-warning button { margin-top: 0.5rem; }

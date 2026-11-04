@@ -27,7 +27,12 @@
     const id = setInterval(() => {
       now = Date.now();
     }, 250);
-    return () => clearInterval(id);
+    const refresh = () => { now = Date.now(); };
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', refresh);
+    };
   });
 
   const remaining = $derived(endAt === null ? 0 : remainingSec(endAt, now));

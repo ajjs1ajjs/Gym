@@ -15,11 +15,53 @@ export class StorageQuotaError extends Error {
   }
 }
 
+export class StorageRecoveryError extends Error {}
+
 const STORAGE_KEY = 'gym-tracker-progress-v2';
 const WEIGHT_KEY = 'gym-tracker-weights';
 const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
 const EX_WEIGHT_V2_KEY = 'gym-tracker-ex-weights-v2';
 const LEGACY_KEY = 'gym-tracker-progress';
+const JOURNAL_KEY = 'gym-tracker-import-journal';
+const DATA_KEYS = [STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_V2_KEY] as const;
+
+/** Restore an interrupted import before reading or changing any data. */
+export function recoverImport(): boolean {
+  try {
+    const raw = localStorage.getItem(JOURNAL_KEY);
+    if (raw === null) return true;
+    const previous: unknown = JSON.parse(raw);
+    if (!Array.isArray(previous) || previous.length !== DATA_KEYS.length ||
+        !previous.every((value) => value === null || typeof value === 'string')) return false;
+    DATA_KEYS.forEach((key, i) => {
+      const value = previous[i] as string | null;
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    });
+    localStorage.removeItem(JOURNAL_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Raw values remain available for download even when their schema is damaged. */
+export function getStorageProblems(): Record<string, string> {
+  const problems: Record<string, string> = {};
+  for (const key of DATA_KEYS) {
+    const raw = safeGetItem(key);
+    if (raw === null) continue;
+    try {
+      const value: unknown = JSON.parse(raw);
+      const valid = key === STORAGE_KEY ? parseProgress(value) :
+        key === WEIGHT_KEY ? parseWeights(value) : parseExWeightHistory(value);
+      if (valid === null) problems[key] = raw;
+    } catch { problems[key] = raw; }
+  }
+  const journal = safeGetItem(JOURNAL_KEY);
+  if (journal !== null) problems[JOURNAL_KEY] = journal;
+  return problems;
+}
 
 const KNOWN_KEYS: ReadonlySet<string> = new Set(getAllKeys());
 
@@ -62,6 +104,16 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 
 function safeGetItem(key: string): string | null {
   try {
+    const index = DATA_KEYS.findIndex((dataKey) => dataKey === key);
+    if (index >= 0) {
+      const journal = localStorage.getItem(JOURNAL_KEY);
+      if (journal !== null) {
+        const previous: unknown = JSON.parse(journal);
+        if (Array.isArray(previous) && previous.length === DATA_KEYS.length &&
+            previous.every((value) => value === null || typeof value === 'string')) return previous[index] as string | null;
+        return null;
+      }
+    }
     return localStorage.getItem(key);
   } catch {
     return null; // SecurityError (приватний режим) тощо
@@ -143,7 +195,10 @@ export function loadAllProgress(): AllProgress {
     const parsed = parseProgress(r.value);
     if (parsed) return parsed;
     console.error(`Invalid schema for storage key: ${STORAGE_KEY}`);
+    quarantine(STORAGE_KEY, JSON.stringify(r.value));
+    return {};
   }
+  if (safeGetItem(STORAGE_KEY) !== null || safeGetItem(JOURNAL_KEY) !== null) return {};
 
   // Legacy-міграція: source лишається до успішного запису нової версії.
   const old = readJson(LEGACY_KEY);
@@ -192,21 +247,18 @@ export function replaceAllData(data: {
   weights: WeightEntry[];
   exWeights: ExWeightHistory;
 }): void {
-  const keys = [STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_V2_KEY] as const;
-  const previous = keys.map((key) => localStorage.getItem(key));
+  if (!recoverImport()) throw new StorageRecoveryError();
+  const previous = DATA_KEYS.map((key) => localStorage.getItem(key));
+  // The journal is written first. If there is no room, nothing is modified.
+  persistRaw(JOURNAL_KEY, JSON.stringify(previous));
   try {
-    persist(STORAGE_KEY, data.progress);
-    persist(WEIGHT_KEY, data.weights);
-    persist(EX_WEIGHT_V2_KEY, data.exWeights);
+    persistRaw(STORAGE_KEY, JSON.stringify(data.progress));
+    persistRaw(WEIGHT_KEY, JSON.stringify(data.weights));
+    persistRaw(EX_WEIGHT_V2_KEY, JSON.stringify(data.exWeights));
+    localStorage.removeItem(JOURNAL_KEY);
   } catch (error) {
-    // Free partial writes first, then restore the exact previous values.
-    for (const key of keys) {
-      try { localStorage.removeItem(key); } catch { /* best effort */ }
-    }
-    keys.forEach((key, i) => {
-      const value = previous[i];
-      if (value !== null && value !== undefined) localStorage.setItem(key, value);
-    });
+    // Keep the journal if restoration fails, so a later launch can retry.
+    recoverImport();
     throw error;
   }
 }
@@ -219,9 +271,18 @@ export function saveAllProgress(all: AllProgress): void {
 export function parseWeights(value: unknown): WeightEntry[] | null {
   if (!Array.isArray(value)) return null;
   // Погані записи дропаємо поштучно; дійсну історію не обрізаємо.
-  return value
-    .filter(isWeightEntry)
-    .map((w) => ({ ...w, id: String(w.id) }));
+  const ids = new Set<string>();
+  const dates = new Set<string>();
+  const result: WeightEntry[] = [];
+  for (const entry of value) {
+    if (!isWeightEntry(entry)) continue;
+    const id = String(entry.id);
+    if (ids.has(id) || dates.has(entry.date)) continue;
+    ids.add(id);
+    dates.add(entry.date);
+    result.push({ ...entry, id });
+  }
+  return result;
 }
 
 export function loadWeights(): WeightEntry[] {
@@ -230,6 +291,7 @@ export function loadWeights(): WeightEntry[] {
   const parsed = parseWeights(r.value);
   if (parsed) return parsed;
   console.error('Invalid schema for storage key');
+  quarantine(WEIGHT_KEY, JSON.stringify(r.value));
   return [];
 }
 
@@ -308,8 +370,10 @@ export function loadExWeightHistory(): ExWeightHistory {
     const parsed = parseExWeightHistory(r.value);
     if (parsed) return parsed;
     console.error(`Invalid schema for storage key: ${EX_WEIGHT_V2_KEY}`);
+    quarantine(EX_WEIGHT_V2_KEY, JSON.stringify(r.value));
     return {};
   }
+  if (safeGetItem(EX_WEIGHT_V2_KEY) !== null || safeGetItem(JOURNAL_KEY) !== null) return {};
   // Міграція: стара вага без дати — фіксуємо сьогоднішнім днем.
   // Старий ключ НЕ видаляємо: відкат на попередню версію збереже дані.
   const old = readJson(EX_WEIGHT_KEY);
@@ -344,8 +408,13 @@ function isQuotaError(e: unknown): boolean {
 }
 
 function persist(key: string, value: unknown): void {
+  if (Object.keys(getStorageProblems()).length > 0) throw new StorageRecoveryError();
+  persistRaw(key, JSON.stringify(value));
+}
+
+function persistRaw(key: string, value: string): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem(key, value);
   } catch (e) {
     if (isQuotaError(e)) {
       throw new StorageQuotaError();

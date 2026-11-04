@@ -17,6 +17,9 @@ import {
   saveExWeightHistory,
   replaceAllData,
   StorageQuotaError,
+  StorageRecoveryError,
+  recoverImport,
+  getStorageProblems,
   STORAGE_KEY,
   WEIGHT_KEY,
   EX_WEIGHT_V2_KEY,
@@ -35,6 +38,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+recoverImport();
 let selectedDate = $state(todayStr());
 let all = $state<AllProgress>(loadAllProgress());
 let weights = $state<WeightEntry[]>(loadWeights());
@@ -50,6 +54,7 @@ let restEndAt = $state<number | null>(null);
 let restTotal = $state(0);
 let restLabel = $state('');
 let importInput: HTMLInputElement | undefined = $state();
+let storageProblems = $state(getStorageProblems());
 
 const allKeys = getAllKeys();
 const knownKeys = new Set(allKeys);
@@ -101,7 +106,9 @@ function persist(fn: () => void): boolean {
     exHistory = { ...snap.exHistory };
     uiTick += 1;
     if (e instanceof StorageQuotaError) showToast('Помилка збереження: сховище переповнене');
+    else if (e instanceof StorageRecoveryError) showToast('Потрібно відновити пошкоджені дані');
     else throw e;
+    storageProblems = getStorageProblems();
     return false;
   }
 }
@@ -136,9 +143,11 @@ interface WakeLockSentinelLike {
 }
 
 let wakeLock: WakeLockSentinelLike | null = null;
+let wakeLockGeneration = 0;
 
 /** Тримає екран увімкненим, поки йде відпочинок (якщо API доступне). */
 async function acquireWakeLock(): Promise<void> {
+  const generation = ++wakeLockGeneration;
   try {
     const wl = (
       navigator as Navigator & {
@@ -146,13 +155,20 @@ async function acquireWakeLock(): Promise<void> {
       }
     ).wakeLock;
     if (!wl) return;
-    wakeLock = await wl.request('screen');
+    const lock = await wl.request('screen');
+    if (generation !== wakeLockGeneration || restEndAt === null || document.visibilityState !== 'visible') {
+      await lock.release();
+      return;
+    }
+    if (wakeLock) await wakeLock.release();
+    wakeLock = lock;
   } catch {
     /* відмовлено/немає API — не критично */
   }
 }
 
 function releaseWakeLock(): void {
+  wakeLockGeneration++;
   try {
     void wakeLock?.release();
   } catch {
@@ -218,6 +234,17 @@ function exportData(): void {
   }
 }
 
+function exportDamagedData(): void {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(getStorageProblems(), null, 2)], { type: 'application/json' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `gym-tracker-recovery-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function pickImport(): void {
   importInput?.click();
 }
@@ -246,6 +273,9 @@ async function importData(e: Event): Promise<void> {
   if (parsed.discarded > 0 && !confirm(
     `У бекапі є пошкоджені або зайві записи. Буде пропущено: ${parsed.discarded}. Продовжити з відновленням решти?`,
   )) return;
+  if (Object.keys(storageProblems).length > 0 && !confirm(
+    'Пошкоджені дані буде замінено. Спочатку завантажте їх копію кнопкою відновлення. Продовжити?',
+  )) return;
   const hasData =
     Object.keys(all).length > 0 || weights.length > 0 || Object.keys(exHistory).length > 0;
   if (hasData && !confirm('Замінити всі поточні дані імпортованими?')) return;
@@ -257,6 +287,7 @@ async function importData(e: Event): Promise<void> {
     exHistory = data.exWeights;
   });
   if (saved) {
+    storageProblems = getStorageProblems();
     const days = Object.keys(data.progress).length;
     showToast(`Імпортовано: днів — ${days}, вимірювань — ${data.weights.length}`);
   }
@@ -346,12 +377,12 @@ async function importData(e: Event): Promise<void> {
     });
   }
 
-  function addWeight(weight: number, date: string): void {
+  function addWeight(weight: number, date: string): boolean {
     if (!isValidEntryWeight(weight) || !isUsableDateStr(date)) {
       showToast('Некоректні дані вимірювання');
-      return;
+      return false;
     }
-    persist(() => {
+    return persist(() => {
       const existingIdx = weights.findIndex((w) => w.date === date);
       const existingEntry = existingIdx >= 0 ? weights[existingIdx] : undefined;
       const entry: WeightEntry = { id: existingEntry?.id ?? newWeightId(), date, weight };
@@ -369,20 +400,20 @@ async function importData(e: Event): Promise<void> {
     });
   }
 
-  function updateWeight(id: string, weight: number, date: string): void {
+  function updateWeight(id: string, weight: number, date: string): boolean {
     if (!isValidEntryWeight(weight) || !isUsableDateStr(date)) {
       showToast('Некоректні дані вимірювання');
-      return;
+      return false;
     }
-    persist(() => {
-      const existingIdx = weights.findIndex((w) => w.id === id);
-      if (existingIdx < 0) return;
+    const existingIdx = weights.findIndex((w) => w.id === id);
+    if (existingIdx < 0) return false;
+    if (weights.some((w) => w.id !== id && w.date === date)) {
+      showToast('На цю дату вже є запис');
+      return false;
+    }
+    return persist(() => {
       // LOGIC-001: зміна дати на зайняту створювала б дублікат (інваріант
       // addWeight — одна дата = один запис). Забороняємо зі зрозумілою помилкою.
-      if (weights.some((w) => w.id !== id && w.date === date)) {
-        showToast('На цю дату вже є запис');
-        return;
-      }
       const entry: WeightEntry = { id, date, weight };
       // Remove old, insert at correct position
       const without = [...weights.slice(0, existingIdx), ...weights.slice(existingIdx + 1)];
@@ -398,10 +429,11 @@ async function importData(e: Event): Promise<void> {
     const idx = weights.findIndex((w) => w.id === id);
     if (idx < 0) return;
     const entry = weights[idx] as WeightEntry;
-    persist(() => {
+    const saved = persist(() => {
       weights = weights.filter((w) => w.id !== id);
       saveWeights(weights);
     });
+    if (!saved) return;
     showToast('Запис видалено', () => {
       persist(() => {
         const insertIdx = weights.findIndex((w) => w.date < entry.date);
@@ -439,6 +471,11 @@ async function importData(e: Event): Promise<void> {
         reloadFromStorage();
       }
     };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && restEndAt !== null && restEndAt > Date.now()) {
+        void acquireWakeLock();
+      }
+    };
     const onAppError = (e: Event) => {
       showToast((e as CustomEvent<string>).detail || 'Сталася помилка');
     };
@@ -446,17 +483,27 @@ async function importData(e: Event): Promise<void> {
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
     window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisibility);
     return () => {
       releaseWakeLock();
       window.removeEventListener('app-error', onAppError);
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onInstalled);
       window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   });
 </script>
 
 <ProgressHeader done={doneCount} {total} />
+
+{#if Object.keys(storageProblems).length > 0}
+  <div role="alert" class="storage-warning">
+    Дані сховища пошкоджені або відновлення імпорту не завершене. Збереження призупинено.
+    Завантажте копію та відновіть дані з бекапу.
+    <button class="btn" onclick={exportDamagedData}>Завантажити пошкоджені дані</button>
+  </div>
+{/if}
 
 <DateNav {selectedDate} onnavigate={navigateDate} onpick={pickDate} ontoday={() => (selectedDate = todayStr())} />
 

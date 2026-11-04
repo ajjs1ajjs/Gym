@@ -17,7 +17,7 @@
     "test:lighthouse": "npx --yes @lhci/cli@0.15.1 autorun"
   },
   "engines": {
-    "node": ">=22"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
