@@ -16,18 +16,25 @@ import {
   loadExWeightHistory,
   saveExWeightHistory,
   replaceAllData,
+  clearCorruptedStorage,
   StorageQuotaError,
   StorageRecoveryError,
   recoverImport,
   getStorageProblems,
+  loadSoundEnabled,
+  saveSoundEnabled,
+  loadLastBackupAt,
+  saveLastBackupAt,
   STORAGE_KEY,
   WEIGHT_KEY,
   EX_WEIGHT_V2_KEY,
+  JOURNAL_KEY,
 } from './lib/storage';
 import { createBackup, parseBackup } from './lib/backup';
-import { upsertExWeight, resolveExWeight } from './lib/exweights';
+import { upsertExWeight, removeExWeight, resolveExWeight } from './lib/exweights';
 import type { ExWeightHistory } from './lib/exweights';
-import { todayStr, shiftDate, formatDate, isUsableDateStr } from './lib/dates';
+import { playRestDoneTone } from './lib/rest';
+import { todayStr, shiftDate, formatDate, formatDateLabel, isUsableDateStr } from './lib/dates';
 import { byDateDesc, newWeightId } from './lib/compute';
 import { MIN_WEIGHT, MAX_WEIGHT } from './lib/format';
 import type { AllProgress } from './lib/storage';
@@ -39,12 +46,13 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 recoverImport();
+let today = $state(todayStr());
 let selectedDate = $state(todayStr());
 let all = $state<AllProgress>(loadAllProgress());
 let weights = $state<WeightEntry[]>(loadWeights());
 let exHistory = $state<ExWeightHistory>(loadExWeightHistory());
-let toast = $state<{ msg: string; undo?: () => void } | null>(null);
-let dialog = $state<{ key: string; initial: number | null } | null>(null);
+let toast = $state<{ msg: string; undo?: () => void; actionLabel?: string } | null>(null);
+let dialog = $state<{ key: string; initial: number | null; canClear: boolean } | null>(null);
 let deferredPrompt = $state<BeforeInstallPromptEvent | null>(null);
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 // Лічильник примусового перемонтування блоків після відкату (див. persist).
@@ -53,6 +61,8 @@ let uiTick = $state(0);
 let restEndAt = $state<number | null>(null);
 let restTotal = $state(0);
 let restLabel = $state('');
+let soundEnabled = $state(loadSoundEnabled());
+let lastBackupAt = $state<string | null>(loadLastBackupAt());
 let importInput: HTMLInputElement | undefined = $state();
 let storageProblems = $state(getStorageProblems());
 
@@ -72,11 +82,12 @@ const progress = $derived(all[selectedDate] ?? {});
 const doneCount = $derived(allKeys.filter((k) => isExerciseDone(progress[k], k)).length);
 const sortedWeights = $derived([...weights].sort(byDateDesc));
 
-function showToast(msg: string, undo?: () => void): void {
-  toast = { msg, undo };
+function showToast(msg: string, undo?: () => void, actionLabel?: string, duration?: number): void {
+  toast = { msg, undo, actionLabel };
   clearTimeout(toastTimer);
-  // Дії мають довше вікно, щоб встигнути натиснути «Скасувати».
-  toastTimer = setTimeout(() => (toast = null), undo ? 6000 : 2000);
+  // Дії мають довше вікно, щоб встигнути натиснути «Скасувати» / «Оновити».
+  const ms = duration ?? (undo ? 6000 : 2200);
+  toastTimer = setTimeout(() => (toast = null), ms);
 }
 
 function dismissToast(): void {
@@ -206,6 +217,7 @@ function finishRest(): void {
   releaseWakeLock();
   showToast(label ? `💪 Відпочинок завершено — ${label}` : '💪 Відпочинок завершено');
   vibrate([180, 90, 180]);
+  if (soundEnabled) playRestDoneTone();
   try {
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       new Notification('Відпочинок завершено', { body: label || 'Час робити наступний підхід' });
@@ -215,6 +227,12 @@ function finishRest(): void {
   }
 }
 
+function toggleSound(): void {
+  soundEnabled = !soundEnabled;
+  saveSoundEnabled(soundEnabled);
+  showToast(soundEnabled ? 'Звук таймера увімкнено' : 'Звук таймера вимкнено');
+}
+
 function exportData(): void {
   try {
     const json = createBackup({ progress: all, weights, exWeights: exHistory });
@@ -222,12 +240,14 @@ function exportData(): void {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `gym-tracker-${todayStr()}.json`;
+    a.download = `gym-tracker-${today}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     // Safari: revoke одразу після click() може скасувати завантаження.
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    saveLastBackupAt(today);
+    lastBackupAt = today;
     showToast('Бекап завантажено');
   } catch {
     showToast('Не вдалося створити бекап');
@@ -238,11 +258,19 @@ function exportDamagedData(): void {
   const url = URL.createObjectURL(new Blob([JSON.stringify(getStorageProblems(), null, 2)], { type: 'application/json' }));
   const a = document.createElement('a');
   a.href = url;
-  a.download = `gym-tracker-recovery-${todayStr()}.json`;
+  a.download = `gym-tracker-recovery-${today}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function clearBrokenData(): void {
+  if (!confirm('Очистити пошкоджені дані сховища? Спочатку завантажте їх копію на випадок відновлення.')) return;
+  clearCorruptedStorage();
+  reloadFromStorage();
+  storageProblems = getStorageProblems();
+  showToast('Пошкоджені дані очищено');
 }
 
 function pickImport(): void {
@@ -331,12 +359,22 @@ async function importData(e: Event): Promise<void> {
 
   function openWeightPrompt(key: string): void {
     const view = resolveExWeight(exHistory, key, selectedDate);
-    dialog = { key, initial: view.current };
+    dialog = { key, initial: view.current, canClear: view.currentDate === selectedDate };
   }
 
   function closeWeightPrompt(value: number | null): void {
     if (dialog && value !== null) setExWeight(dialog.key, value);
     dialog = null;
+  }
+
+  function clearDialogWeight(): void {
+    if (!dialog) return;
+    const key = dialog.key;
+    dialog = null;
+    persist(() => {
+      exHistory = removeExWeight(exHistory, key, selectedDate);
+      saveExWeightHistory(exHistory);
+    });
   }
 
   function pickDate(d: string): void {
@@ -454,6 +492,13 @@ async function importData(e: Event): Promise<void> {
   }
 
   onMount(() => {
+    const syncToday = () => {
+      const cur = todayStr();
+      if (cur !== today) {
+        if (selectedDate === today) selectedDate = cur;
+        today = cur;
+      }
+    };
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
       deferredPrompt = e as BeforeInstallPromptEvent;
@@ -464,32 +509,47 @@ async function importData(e: Event): Promise<void> {
     };
     const onStorage = (e: StorageEvent) => {
       if (
+        e.key === null ||
         e.key === STORAGE_KEY ||
         e.key === WEIGHT_KEY ||
-        e.key === EX_WEIGHT_V2_KEY
+        e.key === EX_WEIGHT_V2_KEY ||
+        e.key === JOURNAL_KEY
       ) {
         reloadFromStorage();
+        storageProblems = getStorageProblems();
       }
     };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && restEndAt !== null && restEndAt > Date.now()) {
-        void acquireWakeLock();
+      if (document.visibilityState === 'visible') {
+        syncToday();
+        if (restEndAt !== null && restEndAt > Date.now()) {
+          void acquireWakeLock();
+        }
       }
     };
     const onAppError = (e: Event) => {
       showToast((e as CustomEvent<string>).detail || 'Сталася помилка');
     };
+    const onAppUpdate = () => {
+      showToast('Доступне оновлення застосунку', () => window.location.reload(), 'Оновити', 10_000);
+    };
+    const midnightTimer = setInterval(syncToday, 60_000);
     window.addEventListener('app-error', onAppError);
+    window.addEventListener('app-update', onAppUpdate);
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
     window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', syncToday);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      clearInterval(midnightTimer);
       releaseWakeLock();
       window.removeEventListener('app-error', onAppError);
+      window.removeEventListener('app-update', onAppUpdate);
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onInstalled);
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', syncToday);
       document.removeEventListener('visibilitychange', onVisibility);
     };
   });
@@ -501,11 +561,14 @@ async function importData(e: Event): Promise<void> {
   <div role="alert" class="storage-warning">
     Дані сховища пошкоджені або відновлення імпорту не завершене. Збереження призупинено.
     Завантажте копію та відновіть дані з бекапу.
-    <button class="btn" onclick={exportDamagedData}>Завантажити пошкоджені дані</button>
+    <div class="storage-warning-actions">
+      <button type="button" class="btn" onclick={exportDamagedData}>Завантажити пошкоджені дані</button>
+      <button type="button" class="btn btn-danger" onclick={clearBrokenData}>Очистити пошкоджені дані</button>
+    </div>
   </div>
 {/if}
 
-<DateNav {selectedDate} onnavigate={navigateDate} onpick={pickDate} ontoday={() => (selectedDate = todayStr())} />
+<DateNav {selectedDate} {today} onnavigate={navigateDate} onpick={pickDate} ontoday={() => (selectedDate = today)} />
 
 <main id="blocks">
   {#key uiTick}
@@ -528,6 +591,7 @@ async function importData(e: Event): Promise<void> {
 
 <WeightSection
   weights={sortedWeights}
+  {today}
   onadd={addWeight}
   onupdate={updateWeight}
   ondelete={deleteWeight}
@@ -537,10 +601,10 @@ async function importData(e: Event): Promise<void> {
 
 <div class="actions">
   {#if deferredPrompt}
-    <button class="btn btn-install" id="btn-install" onclick={installApp}>📲 Встановити</button>
+    <button type="button" class="btn btn-install" id="btn-install" onclick={installApp}>📲 Встановити</button>
   {/if}
-  <button class="btn" id="btn-export" onclick={exportData}>⬇️ Експорт</button>
-  <button class="btn" id="btn-import" onclick={pickImport}>⬆️ Імпорт</button>
+  <button type="button" class="btn" id="btn-export" onclick={exportData}>⬇️ Експорт</button>
+  <button type="button" class="btn" id="btn-import" onclick={pickImport}>⬆️ Імпорт</button>
   <input
     type="file"
     id="import-file"
@@ -550,25 +614,41 @@ async function importData(e: Event): Promise<void> {
     bind:this={importInput}
     onchange={importData}
   />
-  <button class="btn btn-danger" id="btn-reset" onclick={resetProgress}>✕ Скинути прогрес</button>
+  <button type="button" class="btn btn-danger" id="btn-reset" onclick={resetProgress}>✕ Скинути прогрес</button>
+</div>
+<div class="backup-meta">
+  {#if lastBackupAt}
+    Останній бекап: {formatDateLabel(lastBackupAt)}
+  {:else}
+    Дані зберігаються локально на пристрої — регулярно експортуйте бекап
+  {/if}
 </div>
 
-<WeightDialog open={dialog !== null} title="Вага (кг)" initial={dialog?.initial ?? null} onclose={closeWeightPrompt} />
+<WeightDialog
+  open={dialog !== null}
+  title="Вага (кг)"
+  initial={dialog?.initial ?? null}
+  canClear={dialog?.canClear ?? false}
+  onclose={closeWeightPrompt}
+  onclear={clearDialogWeight}
+/>
 
 <RestTimer
   endAt={restEndAt}
   total={restTotal}
   label={restLabel}
+  {soundEnabled}
   onextend={extendRest}
   onstop={stopRest}
   ondone={finishRest}
+  ontogglesound={toggleSound}
 />
 
 {#if toast}
   <div class="toast show" class:above={restEndAt !== null} role="status">
     <span>{toast.msg}</span>
     {#if toast.undo}
-      <button class="toast-undo" id="toast-undo" onclick={runUndo}>Скасувати</button>
+      <button type="button" class="toast-undo" id="toast-undo" onclick={runUndo}>{toast.actionLabel ?? 'Скасувати'}</button>
     {/if}
   </div>
 {/if}

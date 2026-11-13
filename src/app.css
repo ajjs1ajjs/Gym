@@ -76,8 +76,8 @@ header {
   margin-top: 2px;
 }
 
-.weight-stat.down .val { color: var(--accent6); }
-.weight-stat.up .val { color: var(--accent1); }
+.weight-stat.down .val { color: var(--accent1); }
+.weight-stat.up .val { color: var(--accent6); }
 
 .weight-form {
   display: flex;
@@ -173,8 +173,10 @@ header {
   border: 1px solid var(--border);
   color: var(--text2);
   border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 0.7rem;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 0.78rem;
   cursor: pointer;
   font-family: inherit;
 }
@@ -246,6 +248,12 @@ header .subtitle {
 }
 
 .block-header {
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   padding: 14px 16px;
   display: flex;
   align-items: center;
@@ -331,20 +339,27 @@ header .subtitle {
 /* Set dots */
 .ex-sets {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   margin-top: 8px;
 }
 
 .set-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
   border: 2px solid var(--border);
   background: transparent;
   cursor: pointer;
   padding: 0;
   transition: background 0.15s, border-color 0.15s;
   font-family: inherit;
+}
+
+.set-dot::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
 }
 
 .set-dot:hover {
@@ -436,8 +451,8 @@ header .subtitle {
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 6px;
-  width: 28px;
-  height: 28px;
+  min-width: 32px;
+  height: 32px;
   font-size: 1rem;
   cursor: pointer;
   display: flex;
@@ -454,19 +469,23 @@ header .subtitle {
 .ew-btn.ew-set {
   width: auto;
   padding: 0 10px;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   background: var(--surface);
   color: var(--accent1);
 }
 
 .ew-val {
+  background: none;
+  border: none;
+  font-family: inherit;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--accent4);
   cursor: pointer;
-  padding: 2px 8px;
+  padding: 4px 8px;
   border-radius: 4px;
   min-width: 50px;
+  min-height: 32px;
   text-align: center;
 }
 
@@ -494,8 +513,8 @@ header .subtitle {
 }
 
 .ex-check label {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 2px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
@@ -503,7 +522,7 @@ header .subtitle {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: transparent;
   flex-shrink: 0;
 }
@@ -573,9 +592,10 @@ header .subtitle {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
   background: var(--surface2);
   color: var(--text);
-  padding: 10px 20px;
+  padding: 10px 16px;
   border-radius: 10px;
   border: 1px solid var(--border);
   font-size: 0.82rem;
@@ -583,7 +603,8 @@ header .subtitle {
   transition: opacity 0.3s;
   pointer-events: none;
   z-index: 100;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -596,6 +617,7 @@ header .subtitle {
 
 .toast-undo {
   pointer-events: auto;
+  flex-shrink: 0;
   background: none;
   border: 1px solid var(--accent1);
   color: var(--accent1);
@@ -656,11 +678,21 @@ header .subtitle {
   border-color: var(--accent1);
 }
 
+.dlg-error {
+  font-size: 0.78rem;
+  color: var(--accent6);
+  margin-top: 8px;
+}
+
 .dlg-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.dlg-clear {
+  margin-right: auto;
 }
 
 .btn-primary {
@@ -717,9 +749,14 @@ header .subtitle {
 }
 
 .dn-date {
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: inherit;
   font-size: 0.95rem;
   font-weight: 600;
   min-width: 140px;
+  min-height: 44px;
   text-align: center;
   white-space: nowrap;
   padding: 8px 4px;
@@ -749,6 +786,10 @@ header .subtitle {
 
 /* History section */
 .history-entry {
+  width: 100%;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -803,6 +844,12 @@ header .subtitle {
   color: var(--text2);
   font-size: 0.85rem;
   padding: 20px;
+}
+
+.history-more {
+  width: 100%;
+  justify-content: center;
+  margin-top: 4px;
 }
 
 /* Weight chart (sparkline) */
@@ -978,4 +1025,16 @@ header .subtitle {
   color: #fff;
 }
 
-.storage-warning button { margin-top: 0.5rem; }
+.storage-warning-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0.5rem;
+}
+
+.backup-meta {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text2);
+  margin-top: 10px;
+}

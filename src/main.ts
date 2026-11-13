@@ -6,8 +6,8 @@ import App from './App.svelte';
 registerSW({
   immediate: true,
   onNeedRefresh() {
-    // PWA-001: нова версія чекає — видимий сигнал замість тихого стендбаю.
-    window.dispatchEvent(new CustomEvent<string>('app-error', { detail: 'Доступне оновлення — перезавантажте сторінку.' }));
+    // PWA-001: нова версія чекає — видимий сигнал із можливістю перезавантажити.
+    window.dispatchEvent(new CustomEvent('app-update'));
   },
   onOfflineReady() {
     window.dispatchEvent(new CustomEvent<string>('app-error', { detail: 'Готово до роботи офлайн.' }));

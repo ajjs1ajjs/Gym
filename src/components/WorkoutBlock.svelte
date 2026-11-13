@@ -43,30 +43,21 @@
   function toggle(): void {
     open = !open;
   }
-
-  function onKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      toggle();
-    }
-  }
 </script>
 
 <div class="block {accent}">
-  <div
+  <button
+    type="button"
     class="block-header"
-    role="button"
-    tabindex="0"
     aria-expanded={open}
     aria-controls={bodyId}
     onclick={toggle}
-    onkeydown={onKeydown}
   >
     <div class="icon">{block.icon}</div>
     <div class="title">{block.title}</div>
     <div class="block-progress">{blockDone}/{blockTotal}</div>
     <div class="arrow" class:open>▾</div>
-  </div>
+  </button>
   <div id={bodyId} class="block-body" class:open>
     <div class="block-desc">{block.desc}</div>
     {#each block.exercises as ex (ex.key)}

@@ -3,11 +3,13 @@
 
   let {
     selectedDate,
+    today = todayStr(),
     onnavigate,
     onpick,
     ontoday,
   } = $props<{
     selectedDate: string;
+    today?: string;
     onnavigate: (delta: number) => void;
     onpick: (date: string) => void;
     ontoday: () => void;
@@ -25,31 +27,24 @@
       picker?.click();
     }
   }
-
-  function onKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      showPicker();
-    }
-  }
 </script>
 
 <div class="date-nav" id="date-nav">
-  <button class="dn-btn" onclick={() => onnavigate(-1)} aria-label="Попередній день">◀</button>
-  <span class="dn-date" role="button" tabindex="0" aria-label="Обрати дату" onclick={showPicker} onkeydown={onKeydown}>
+  <button type="button" class="dn-btn" onclick={() => onnavigate(-1)} aria-label="Попередній день">◀</button>
+  <button type="button" class="dn-date" aria-label="Обрати дату" onclick={showPicker}>
     {formatDateLabel(selectedDate)}
-  </span>
-  <button class="dn-btn" onclick={() => onnavigate(1)} aria-label="Наступний день">▶</button>
+  </button>
+  <button type="button" class="dn-btn" onclick={() => onnavigate(1)} aria-label="Наступний день">▶</button>
   <input
     type="date"
     class="dn-picker"
     aria-label="Дата тренування"
     bind:this={picker}
-    max={todayStr()}
+    max={today}
     value={selectedDate}
     onchange={(e) => onpick((e.currentTarget as HTMLInputElement).value)}
   />
-  {#if selectedDate !== todayStr()}
-    <button class="dn-btn dn-today" onclick={ontoday}>📅 Сьогодні</button>
+  {#if selectedDate !== today}
+    <button type="button" class="dn-btn dn-today" onclick={ontoday}>📅 Сьогодні</button>
   {/if}
 </div>

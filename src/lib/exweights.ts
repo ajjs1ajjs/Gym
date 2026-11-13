@@ -59,6 +59,23 @@ export function upsertExWeight(
   return { ...history, [key]: next };
 }
 
+/** Видалити запис ваги за конкретну дату; порожній ключ прибирається. */
+export function removeExWeight(
+  history: ExWeightHistory,
+  key: string,
+  date: string,
+): ExWeightHistory {
+  const list = history[key];
+  if (!list || !list.some((p) => p.date === date)) return history;
+  const next = list.filter((p) => p.date !== date);
+  if (next.length === 0) {
+    const rest = { ...history };
+    delete rest[key];
+    return rest;
+  }
+  return { ...history, [key]: next };
+}
+
 /** Рядок-підказка під вагою вправи; null — показувати нічого. */
 export function exWeightHint(view: ExWeightView, date: string): string | null {
   if (view.current === null || view.currentDate === null) return null;

@@ -52,13 +52,6 @@
     if (img && img.src !== FALLBACK_IMG) img.src = FALLBACK_IMG;
   }
 
-  function onValKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onpromptweight();
-    }
-  }
-
   function toggleSet(n: number): void {
     // Тап по вже заповненій крапці знімає її; інакше — заповнює до неї.
     onsetsets(completed >= n ? n - 1 : n);
@@ -91,15 +84,16 @@
       <div class="ex-weight">
         {#if exercise.hasWeight}
           {#if weight !== undefined}
-            <button class="ew-btn" onclick={() => changeWeight(-2.5)} aria-label="Зменшити вагу">−</button>
-            <span class="ew-val" role="button" tabindex="0" onclick={onpromptweight} onkeydown={onValKeydown}>{weight} кг</span>
-            <button class="ew-btn" onclick={() => changeWeight(2.5)} aria-label="Збільшити вагу">+</button>
+            <button type="button" class="ew-btn" onclick={() => changeWeight(-2.5)} aria-label="Зменшити вагу">−</button>
+            <button type="button" class="ew-val" onclick={onpromptweight} aria-label="Змінити вагу {exercise.name}: {weight} кг">{weight} кг</button>
+            <button type="button" class="ew-btn" onclick={() => changeWeight(2.5)} aria-label="Збільшити вагу">+</button>
           {:else}
-            <button class="ew-btn ew-set" onclick={onpromptweight}>+ Вага</button>
+            <button type="button" class="ew-btn ew-set" onclick={onpromptweight}>+ Вага</button>
           {/if}
         {/if}
         {#if exercise.rest}
           <button
+            type="button"
             class="ew-btn ew-set ew-timer"
             onclick={onstartrest}
             aria-label="⏱ {exercise.rest}с — таймер відпочинку, {exercise.rest} секунд"

@@ -92,6 +92,26 @@ describe('createBackup / parseBackup (v2)', () => {
       expect(parsed.data.exWeights).toEqual({ 'leg-press': [{ date: day, weight: 120 }] });
     }
   });
+
+  it('counts v1 numeric exWeights inside a v2 backup as discarded', () => {
+    const json = JSON.stringify({
+      app: BACKUP_APP,
+      v: 2,
+      exportedAt: '2026-01-01T00:00:00Z',
+      data: {
+        progress: { [day]: { 'leg-press': 99 } },
+        weights: [],
+        exWeights: { 'leg-press': 120 },
+      },
+    });
+    const parsed = parseBackup(json);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) {
+      expect(parsed.data.progress[day]).toEqual({ 'leg-press': 3 });
+      expect(parsed.data.exWeights).toEqual({});
+      expect(parsed.discarded).toBe(1);
+    }
+  });
 });
 
 describe('parseBackup v1 compatibility', () => {

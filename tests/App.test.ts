@@ -281,4 +281,73 @@ describe('App storage safety', () => {
     expect(document.querySelectorAll('.weight-entry')).toHaveLength(2);
     expect(document.querySelector('.toast')?.textContent).toContain('вже є запис');
   });
+
+  it('cancels edit mode if the edited weight entry is deleted', async () => {
+    localStorage.setItem(WEIGHTS, JSON.stringify([{ id: 'w1', date: todayStr(), weight: 80 }]));
+    render(App);
+    (document.querySelector('.w-btn-edit') as HTMLButtonElement).click();
+    await tick();
+    expect(document.getElementById('w-add')?.textContent).toContain('Зберегти');
+    (document.querySelector('.w-btn-del') as HTMLButtonElement).click();
+    await tick();
+    expect(document.getElementById('w-add')?.textContent).toContain('Додати');
+    expect(document.getElementById('w-cancel')).toBeNull();
+  });
+
+  it('clears an exercise weight for the selected date from WeightDialog', async () => {
+    const today = todayStr();
+    localStorage.setItem(EX_WEIGHTS_V2, JSON.stringify({ 'leg-press': [{ date: today, weight: 100 }] }));
+    render(App);
+    (document.querySelector('.ew-val') as HTMLButtonElement).click();
+    await tick();
+    const clearBtn = document.getElementById('dlg-clear') as HTMLButtonElement;
+    expect(clearBtn).toBeInTheDocument();
+    clearBtn.click();
+    await tick();
+    expect(JSON.parse(localStorage.getItem(EX_WEIGHTS_V2) ?? '{}')).toEqual({});
+  });
+
+  it('syncs when another tab clears localStorage and unblocks corrupt storage on reset', async () => {
+    localStorage.setItem(V2, JSON.stringify({ [todayStr()]: { burpee: 3 } }));
+    render(App);
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`1/${TOTAL}`);
+    localStorage.clear();
+    window.dispatchEvent(new StorageEvent('storage', { key: null }));
+    await tick();
+    expect(document.querySelector('.progress-text')?.textContent).toContain(`0/${TOTAL}`);
+  });
+
+  it('allows clearing corrupted storage when no backup is available', async () => {
+    localStorage.setItem(V2, '{bad');
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      render(App);
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      screen.getByText('Очистити пошкоджені дані').click();
+      await tick();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(localStorage.getItem(V2)).toBeNull();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
+  it('shows an update toast with reload action on app-update', async () => {
+    render(App);
+    window.dispatchEvent(new CustomEvent('app-update'));
+    await tick();
+    expect(document.querySelector('.toast')?.textContent).toContain('Доступне оновлення');
+    expect(document.getElementById('toast-undo')?.textContent).toBe('Оновити');
+  });
+
+  it('toggles rest timer sound preference', async () => {
+    render(App);
+    (document.querySelector('.ew-timer') as HTMLButtonElement).click();
+    await tick();
+    const soundBtn = screen.getByLabelText('Вимкнути звук таймера') as HTMLButtonElement;
+    soundBtn.click();
+    await tick();
+    expect(localStorage.getItem('gym-tracker-sound')).toBe('0');
+    expect(screen.getByLabelText('Увімкнути звук таймера')).toBeInTheDocument();
+  });
 });

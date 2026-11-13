@@ -20,8 +20,8 @@
   <img src="https://img.shields.io/badge/Svelte-5-orange?logo=svelte&logoColor=white" alt="Svelte 5">
   <img src="https://img.shields.io/badge/TypeScript-typed-blue?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/PWA-offline-cyan" alt="PWA">
-  <img src="https://img.shields.io/badge/tests-95%20passing-green" alt="Tests">
-  <img src="https://img.shields.io/badge/bundle-31KB%20gzip-00d4aa" alt="Bundle">
+  <img src="https://img.shields.io/badge/tests-111%20passing-green" alt="Tests">
+  <img src="https://img.shields.io/badge/bundle-34KB%20gzip-00d4aa" alt="Bundle">
 </p>
 
 [**🌐 Live Site**](https://ajjs1ajjs.github.io/dist/gym/)
@@ -68,8 +68,8 @@
 - **TypeScript** — повна типізація
 - **Vite** — швидкий білд, максимальна швидкість
 - **vite-plugin-pwa** — автоматичний service worker (precache + cache-first)
-- **Vitest** + **@testing-library/svelte** — 95 юніт/компонентних тестів
-- **Playwright** — 7 E2E-сценаріїв (PWA-білд у Chromium)
+- **Vitest** + **@testing-library/svelte** — 111 юніт/компонентних тестів
+- **Playwright** — 9 E2E-сценаріїв (PWA-білд у Chromium)
 - **Lighthouse CI** — аудит Performance/A11y/Best-practices (ручний воркфлоу **Quality**)
 - **ESLint** + **svelte-check** — якість коду
 

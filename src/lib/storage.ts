@@ -23,16 +23,43 @@ const EX_WEIGHT_KEY = 'gym-tracker-ex-weights';
 const EX_WEIGHT_V2_KEY = 'gym-tracker-ex-weights-v2';
 const LEGACY_KEY = 'gym-tracker-progress';
 const JOURNAL_KEY = 'gym-tracker-import-journal';
+const SOUND_KEY = 'gym-tracker-sound';
+const LAST_BACKUP_KEY = 'gym-tracker-last-backup';
 const DATA_KEYS = [STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_V2_KEY] as const;
+
+function clearQuarantinedKeys(): void {
+  try {
+    const prefixes = [...DATA_KEYS, JOURNAL_KEY].map((k) => `${k}.corrupt.`);
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && prefixes.some((p) => k.startsWith(p))) toRemove.push(k);
+    }
+    for (const k of toRemove) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
+}
 
 /** Restore an interrupted import before reading or changing any data. */
 export function recoverImport(): boolean {
   try {
     const raw = localStorage.getItem(JOURNAL_KEY);
     if (raw === null) return true;
-    const previous: unknown = JSON.parse(raw);
+    let previous: unknown;
+    try {
+      previous = JSON.parse(raw);
+    } catch {
+      quarantine(JOURNAL_KEY, raw);
+      localStorage.removeItem(JOURNAL_KEY);
+      return true;
+    }
     if (!Array.isArray(previous) || previous.length !== DATA_KEYS.length ||
-        !previous.every((value) => value === null || typeof value === 'string')) return false;
+        !previous.every((value) => value === null || typeof value === 'string')) {
+      quarantine(JOURNAL_KEY, raw);
+      localStorage.removeItem(JOURNAL_KEY);
+      return true;
+    }
     DATA_KEYS.forEach((key, i) => {
       const value = previous[i] as string | null;
       if (value === null) localStorage.removeItem(key);
@@ -43,6 +70,15 @@ export function recoverImport(): boolean {
   } catch {
     return false;
   }
+}
+
+/** Видаляє пошкоджені ключі та карантинні копії, щоб розблокувати збереження без бекапу. */
+export function clearCorruptedStorage(): void {
+  const problems = getStorageProblems();
+  for (const key of Object.keys(problems)) {
+    safeRemoveItem(key);
+  }
+  clearQuarantinedKeys();
 }
 
 /** Raw values remain available for download even when their schema is damaged. */
@@ -256,6 +292,7 @@ export function replaceAllData(data: {
     persistRaw(WEIGHT_KEY, JSON.stringify(data.weights));
     persistRaw(EX_WEIGHT_V2_KEY, JSON.stringify(data.exWeights));
     localStorage.removeItem(JOURNAL_KEY);
+    clearQuarantinedKeys();
   } catch (error) {
     // Keep the journal if restoration fails, so a later launch can retry.
     recoverImport();
@@ -423,4 +460,22 @@ function persistRaw(key: string, value: string): void {
   }
 }
 
-export { STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_KEY, EX_WEIGHT_V2_KEY, LEGACY_KEY };
+export function loadSoundEnabled(): boolean {
+  const raw = safeGetItem(SOUND_KEY);
+  return raw !== '0';
+}
+
+export function saveSoundEnabled(enabled: boolean): void {
+  safeSetItem(SOUND_KEY, enabled ? '1' : '0');
+}
+
+export function loadLastBackupAt(): string | null {
+  const raw = safeGetItem(LAST_BACKUP_KEY);
+  return raw && isRealCalendarDate(raw) ? raw : null;
+}
+
+export function saveLastBackupAt(date: string = todayStr()): void {
+  if (isRealCalendarDate(date)) safeSetItem(LAST_BACKUP_KEY, date);
+}
+
+export { STORAGE_KEY, WEIGHT_KEY, EX_WEIGHT_KEY, EX_WEIGHT_V2_KEY, LEGACY_KEY, JOURNAL_KEY };

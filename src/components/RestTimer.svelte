@@ -5,16 +5,20 @@
     endAt,
     total,
     label,
+    soundEnabled = true,
     onextend,
     onstop,
     ondone,
+    ontogglesound,
   } = $props<{
     endAt: number | null;
     total: number;
     label: string;
+    soundEnabled?: boolean;
     onextend: (extraSec: number) => void;
     onstop: () => void;
     ondone: () => void;
+    ontogglesound?: () => void;
   }>();
 
   let now = $state(Date.now());
@@ -55,7 +59,7 @@
   <div
     class="rest-timer"
     role="timer"
-    aria-live="polite"
+    aria-live="off"
     aria-label="Відпочинок {label}: {formatClock(remaining)}"
   >
     <div class="rt-info">
@@ -63,8 +67,18 @@
       <div class="rt-clock">{formatClock(remaining)}</div>
     </div>
     <div class="rt-actions">
-      <button class="rt-btn" onclick={() => onextend(15)}>+15с</button>
-      <button class="rt-btn rt-stop" onclick={onstop} aria-label="Зупинити таймер">✕</button>
+      {#if ontogglesound}
+        <button
+          type="button"
+          class="rt-btn rt-sound"
+          onclick={ontogglesound}
+          aria-pressed={soundEnabled}
+          aria-label={soundEnabled ? 'Вимкнути звук таймера' : 'Увімкнути звук таймера'}
+          title={soundEnabled ? 'Звук увімкнено' : 'Звук вимкнено'}
+        >{soundEnabled ? '🔊' : '🔇'}</button>
+      {/if}
+      <button type="button" class="rt-btn" onclick={() => onextend(15)}>+15с</button>
+      <button type="button" class="rt-btn rt-stop" onclick={onstop} aria-label="Зупинити таймер">✕</button>
     </div>
     <div class="rt-bar"><div class="rt-fill" style="width:{pct}%"></div></div>
   </div>

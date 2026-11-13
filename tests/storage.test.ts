@@ -13,6 +13,11 @@ import {
   StorageRecoveryError,
   getStorageProblems,
   recoverImport,
+  clearCorruptedStorage,
+  loadSoundEnabled,
+  saveSoundEnabled,
+  loadLastBackupAt,
+  saveLastBackupAt,
   parseWeights,
 } from '../src/lib/storage';
 import { todayStr } from '../src/lib/dates';
@@ -333,5 +338,47 @@ describe('exercise weight history storage', () => {
     }
     expect(backups).toHaveLength(1);
     expect(localStorage.getItem(backups[0] as string)).toBe('{corrupt');
+  });
+
+  it('quarantines and clears a corrupt import journal so imports can proceed', () => {
+    localStorage.setItem('gym-tracker-import-journal', '{broken');
+    expect(recoverImport()).toBe(true);
+    expect(localStorage.getItem('gym-tracker-import-journal')).toBeNull();
+    expect(() =>
+      replaceAllData({
+        progress: { [todayStr()]: { burpee: 1 } },
+        weights: [],
+        exWeights: {},
+      }),
+    ).not.toThrow();
+    expect(loadAllProgress()).toEqual({ [todayStr()]: { burpee: 1 } });
+  });
+
+  it('clears corrupted keys via clearCorruptedStorage and cleans quarantine after replaceAllData', () => {
+    localStorage.setItem(V2, '{corrupt');
+    expect(loadAllProgress()).toEqual({});
+    expect(Object.keys(getStorageProblems())).toContain(V2);
+
+    clearCorruptedStorage();
+    expect(getStorageProblems()).toEqual({});
+    expect(() => saveAllProgress({ [todayStr()]: { burpee: 2 } })).not.toThrow();
+
+    localStorage.setItem(`${V2}.corrupt.123`, '{old');
+    replaceAllData({ progress: {}, weights: [], exWeights: {} });
+    expect(localStorage.getItem(`${V2}.corrupt.123`)).toBeNull();
+  });
+
+  it('stores and loads sound and last-backup preferences', () => {
+    expect(loadSoundEnabled()).toBe(true);
+    saveSoundEnabled(false);
+    expect(loadSoundEnabled()).toBe(false);
+    saveSoundEnabled(true);
+    expect(loadSoundEnabled()).toBe(true);
+
+    expect(loadLastBackupAt()).toBeNull();
+    saveLastBackupAt('2026-10-20');
+    expect(loadLastBackupAt()).toBe('2026-10-20');
+    saveLastBackupAt('not-a-date');
+    expect(loadLastBackupAt()).toBe('2026-10-20');
   });
 });

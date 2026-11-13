@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { todayStr, formatDate, isUsableDateStr } from '../lib/dates';
   import { computeWeightDiffs } from '../lib/compute';
   import { toWeight } from '../lib/format';
@@ -7,11 +8,13 @@
 
   let {
     weights,
+    today = todayStr(),
     onadd,
     onupdate,
     ondelete,
   } = $props<{
     weights: WeightEntry[];
+    today?: string;
     onadd: (weight: number, date: string) => boolean;
     onupdate: (id: string, weight: number, date: string) => boolean;
     ondelete: (id: string) => void;
@@ -19,9 +22,17 @@
 
   let open = $state(true);
   let wInput = $state('');
-  let wDate = $state(todayStr());
+  let prevToday = untrack(() => today);
+  let wDate = $state(untrack(() => today));
   let editId = $state<string | null>(null);
   let error = $state('');
+
+  $effect(() => {
+    if (today !== prevToday) {
+      if (editId === null && wDate === prevToday) wDate = today;
+      prevToday = today;
+    }
+  });
 
   const current = $derived(weights.length > 0 ? weights[0]?.weight : null);
   const prev = $derived(weights.length > 1 ? weights[1]?.weight : null);
@@ -56,7 +67,7 @@
     editId = null;
     wInput = '';
     error = '';
-    wDate = todayStr();
+    wDate = today;
   }
 
   function startEdit(id: string): void {
@@ -67,24 +78,22 @@
     editId = id;
   }
 
-  function toggle(): void {
-    open = !open;
+  function handleDelete(id: string): void {
+    if (editId === id) cancelEdit();
+    ondelete(id);
   }
 
-  function onKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      toggle();
-    }
+  function toggle(): void {
+    open = !open;
   }
 </script>
 
 <div class="block block-weight">
-  <div class="block-header" role="button" tabindex="0" aria-expanded={open} aria-label="Вага: згорнути/розгорнути" onclick={toggle} onkeydown={onKeydown}>
+  <button type="button" class="block-header" aria-expanded={open} aria-label="Вага: згорнути/розгорнути" onclick={toggle}>
     <div class="icon" style="background:var(--accent4);color:#000">⚖️</div>
     <div class="title">Вага</div>
     <div class="arrow" class:open>▾</div>
-  </div>
+  </button>
   <div class="block-body" class:open id="weight-section">
     <div class="weight-summary">
       {#if current !== null}
@@ -131,10 +140,10 @@
         bind:value={wInput}
         onkeydown={(e) => e.key === 'Enter' && submit()}
       />
-      <input type="date" id="w-date" bind:value={wDate} max={todayStr()} aria-label="Дата вимірювання" />
-      <button class="btn-add" id="w-add" onclick={submit}>{editId !== null ? '✎ Зберегти' : '+ Додати'}</button>
+      <input type="date" id="w-date" bind:value={wDate} max={today} aria-label="Дата вимірювання" />
+      <button type="button" class="btn-add" id="w-add" onclick={submit}>{editId !== null ? '✎ Зберегти' : '+ Додати'}</button>
       {#if editId !== null}
-        <button class="btn-cancel" id="w-cancel" onclick={cancelEdit} aria-label="Скасувати редагування">✕</button>
+        <button type="button" class="btn-cancel" id="w-cancel" onclick={cancelEdit} aria-label="Скасувати редагування">✕</button>
       {/if}
     </div>
 
@@ -150,8 +159,8 @@
             </span>
           {/if}
           <div class="w-actions">
-            <button class="w-btn w-btn-edit" aria-label="Редагувати запис" onclick={() => startEdit(w.id)}>✎</button>
-            <button class="w-btn w-btn-del" aria-label="Видалити запис" onclick={() => ondelete(w.id)}>✕</button>
+            <button type="button" class="w-btn w-btn-edit" aria-label="Редагувати запис" onclick={() => startEdit(w.id)}>✎</button>
+            <button type="button" class="w-btn w-btn-del" aria-label="Видалити запис" onclick={() => handleDelete(w.id)}>✕</button>
           </div>
         </div>
       {/each}

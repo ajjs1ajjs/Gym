@@ -8,7 +8,7 @@ import type { AllProgress } from './storage';
 import type { WeightEntry } from './compute';
 import type { ExWeightHistory } from './exweights';
 import { todayStr, isRealCalendarDate } from './dates';
-import { exerciseSets, getAllKeys } from './workout';
+import { getAllKeys } from './workout';
 
 /**
  * Бекап усього стану застосунку одним JSON-файлом.
@@ -50,7 +50,7 @@ export type BackupParseResult =
 
 const knownExerciseKeys = new Set(getAllKeys());
 
-function countDiscarded(data: Record<string, unknown>, parsed: BackupData): number {
+function countDiscarded(data: Record<string, unknown>, parsed: BackupData, version: 1 | 2): number {
   let count = 0;
   const progress = data.progress;
   if (typeof progress === 'object' && progress !== null && !Array.isArray(progress)) {
@@ -62,10 +62,8 @@ function countDiscarded(data: Record<string, unknown>, parsed: BackupData): numb
       const clean = parsed.progress[date];
       for (const [key, value] of Object.entries(day)) {
         if (!knownExerciseKeys.has(key)) { count++; continue; }
-        const target = exerciseSets(key);
         const valid = value === true || (typeof value === 'number' && Number.isInteger(value) && value > 0);
-        if (!valid || (typeof value === 'number' && value > target)) count++;
-        else if (!clean || clean[key] === undefined) count++;
+        if (!valid || !clean || clean[key] === undefined) count++;
       }
     }
   }
@@ -77,7 +75,7 @@ function countDiscarded(data: Record<string, unknown>, parsed: BackupData): numb
     for (const [key, value] of Object.entries(rawHistory)) {
       if (!knownExerciseKeys.has(key)) { count++; continue; }
       // v1 stored a single current value per exercise rather than dated points.
-      if (typeof value === 'number') {
+      if (version === 1 && typeof value === 'number') {
         if (!Number.isFinite(value) || value < 0.5 || value > 999) count++;
         continue;
       }
@@ -151,5 +149,5 @@ export function parseBackup(text: string): BackupParseResult {
     return { ok: false, error: 'Пошкоджений бекап: невірна структура даних' };
   }
   const parsedData = { progress, weights, exWeights };
-  return { ok: true, data: parsedData, discarded: countDiscarded(data, parsedData) };
+  return { ok: true, data: parsedData, discarded: countDiscarded(data, parsedData, env.v) };
 }

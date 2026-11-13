@@ -14,7 +14,9 @@
     onselect: (date: string) => void;
   }>();
 
+  const INITIAL_LIMIT = 14;
   let open = $state(true);
+  let showAll = $state(false);
   const allKeys = getAllKeys();
   const total = allKeys.length;
   const dates = $derived(
@@ -24,53 +26,45 @@
       .sort()
       .reverse(),
   );
+  const visibleDates = $derived(showAll ? dates : dates.slice(0, INITIAL_LIMIT));
 
   function toggle(): void {
     open = !open;
   }
-
-  function onKeydown(e: KeyboardEvent): void {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      toggle();
-    }
-  }
 </script>
 
 <div class="block block-history">
-  <div class="block-header" role="button" tabindex="0" aria-expanded={open} aria-label="Історія тренувань: згорнути/розгорнути" onclick={toggle} onkeydown={onKeydown}>
+  <button type="button" class="block-header" aria-expanded={open} aria-label="Історія тренувань: згорнути/розгорнути" onclick={toggle}>
     <div class="icon" style="background:var(--accent7);color:#fff">📋</div>
     <div class="title">Історія тренувань</div>
     <div class="arrow" class:open>▾</div>
-  </div>
+  </button>
   <div class="block-body" class:open id="history-section">
     {#if dates.length === 0}
       <div class="history-empty">Ще немає записів тренувань</div>
     {:else}
-      {#each dates as d (d)}
+      {#each visibleDates as d (d)}
         {@const progress = all[d] ?? {}}
         {@const done = allKeys.filter((k) => isExerciseDone(progress[k], k)).length}
         {@const pct = progressPct(done, total)}
         {@const isSel = d === selectedDate}
-        <div
+        <button
+          type="button"
           class="history-entry"
           class:history-curr={isSel}
-          role="button"
-          tabindex="0"
           aria-label="Тренування {formatDate(d)}: {done} з {total}"
           onclick={() => onselect(d)}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onselect(d);
-            }
-          }}
         >
           <span class="h-date">{formatDate(d)}</span>
           <div class="h-bar"><div class="h-fill" style="width:{pct}%"></div></div>
           <span class="h-pct">{done}/{total} · {pct}%</span>
-        </div>
+        </button>
       {/each}
+      {#if dates.length > INITIAL_LIMIT}
+        <button type="button" class="btn history-more" onclick={() => (showAll = !showAll)}>
+          {showAll ? 'Згорнути' : `Показати всю історію (${dates.length})`}
+        </button>
+      {/if}
     {/if}
   </div>
 </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveExWeight, upsertExWeight, exWeightHint } from '../src/lib/exweights';
+import { resolveExWeight, upsertExWeight, removeExWeight, exWeightHint } from '../src/lib/exweights';
 import type { ExWeightHistory } from '../src/lib/exweights';
 
 const H: ExWeightHistory = {
@@ -86,6 +86,24 @@ describe('upsertExWeight', () => {
     const next = upsertExWeight(H, 'burpee', '2024-01-20', 10);
     expect(JSON.stringify(H)).toBe(before);
     expect(next['burpee']).toEqual([{ date: '2024-01-20', weight: 10 }]);
+  });
+});
+
+describe('removeExWeight', () => {
+  it('removes a single date without mutating other points or input', () => {
+    const before = JSON.stringify(H);
+    const next = removeExWeight(H, 'leg-press', '2024-01-08');
+    expect(JSON.stringify(H)).toBe(before);
+    expect(next['leg-press']).toEqual([
+      { date: '2024-01-01', weight: 115 },
+      { date: '2024-01-15', weight: 122.5 },
+    ]);
+  });
+
+  it('removes the exercise key when the last point is deleted', () => {
+    const one: ExWeightHistory = { burpee: [{ date: '2024-01-01', weight: 10 }] };
+    expect(removeExWeight(one, 'burpee', '2024-01-01')).toEqual({});
+    expect(removeExWeight(one, 'burpee', '2024-01-02')).toBe(one);
   });
 });
 
